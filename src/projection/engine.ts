@@ -10,10 +10,11 @@
  * - Separa patrimônio financeiro e imobilizado
  * - Suporta movimentações ONE_TIME, MONTHLY e YEARLY
  * - Suporta status de vida (ALIVE, DECEASED, DISABLED)
- * - Ignora seguros (etapa futura)
+ * - Suporta seguros (prêmios anuais e indenização por trigger)
  */
 
 import {
+    Insurance,
     LifeStatus,
     LifeStatusEvent,
     Movement,
@@ -167,13 +168,62 @@ function calculateMovementsImpact(
 }
 
 /**
+ * Calcula o impacto dos seguros em um ano.
+ * 
+ * - Prêmios: aplicados anualmente (monthlyPremium * 12) como OUTFLOW
+ * - Indenização: aplicada apenas uma vez no primeiro ano em que
+ *   lifeStatus === triggerCondition
+ * 
+ * @param insurances Lista de seguros
+ * @param lifeStatus Status de vida ativo no ano
+ * @param triggeredInsuranceIds Set de IDs de seguros já acionados
+ * @returns Objeto com totalPremiums, totalCoverage, netImpact e newlyTriggeredIds
+ */
+function calculateInsuranceImpact(
+    insurances: Insurance[],
+    lifeStatus: LifeStatus,
+    triggeredInsuranceIds: Set<string>
+): {
+    totalPremiums: number;
+    totalCoverage: number;
+    netImpact: number;
+    newlyTriggeredIds: string[];
+} {
+    let totalPremiums = 0;
+    let totalCoverage = 0;
+    const newlyTriggeredIds: string[] = [];
+
+    for (const insurance of insurances) {
+        // Prêmio anual (12 meses)
+        totalPremiums += insurance.monthlyPremium * 12;
+
+        // Indenização: apenas se trigger condition matches e ainda não foi acionado
+        if (
+            insurance.triggerCondition === lifeStatus &&
+            !triggeredInsuranceIds.has(insurance.id)
+        ) {
+            totalCoverage += insurance.coverageAmount;
+            newlyTriggeredIds.push(insurance.id);
+        }
+    }
+
+    return {
+        totalPremiums,
+        totalCoverage,
+        netImpact: totalCoverage - totalPremiums, // Coverage é entrada, premium é saída
+        newlyTriggeredIds,
+    };
+}
+
+/**
  * Gera a projeção patrimonial ano a ano.
  *
  * Ordem de cálculo por ano:
  * 1. Resolve status de vida ativo para o ano
  * 2. Aplica movimentações (respeitando regras de status de vida)
- * 3. Calcula rendimento sobre patrimônio total (após movimentações)
- * 4. Distribui rendimento proporcionalmente
+ * 3. Aplica seguros (se includeInsurance = true)
+ * 4. Calcula rendimento sobre patrimônio total (após movimentações e seguros)
+ * 5. Distribui rendimento proporcionalmente
  *
  * @param simulation Configuração da simulação
  * @returns Resultado da projeção com lista de resultados anuais
@@ -185,14 +235,19 @@ export function runProjection(simulation: Simulation): ProjectionResult {
         annualRealRate,
         initialPatrimony,
         movements,
+        insurances,
         initialLifeStatus,
         lifeStatusEvents,
+        includeInsurance,
     } = simulation;
 
     const yearlyResults: YearlyProjectionResult[] = [];
 
     let currentFinancial = initialPatrimony.financial;
     let currentRealEstate = initialPatrimony.realEstate;
+
+    // Rastreia seguros que já foram acionados (indenização já paga)
+    const triggeredInsuranceIds = new Set<string>();
 
     for (let year = startYear; year <= endYear; year++) {
         const patrimonyStart = createPatrimonyBreakdown(currentFinancial, currentRealEstate);
@@ -207,17 +262,35 @@ export function runProjection(simulation: Simulation): ProjectionResult {
         // Patrimônio não pode ficar negativo
         currentFinancial = Math.max(0, currentFinancial + movementImpact.netImpact);
 
-        // 3. Calcula rendimento sobre o patrimônio total (após movimentações)
-        const totalAfterMovements = currentFinancial + currentRealEstate;
-        const investmentReturn = calculateAnnualReturn(totalAfterMovements, annualRealRate);
+        // 3. Aplica seguros (se habilitado)
+        let insuranceImpact = 0;
+        if (includeInsurance && insurances.length > 0) {
+            const insuranceResult = calculateInsuranceImpact(
+                insurances,
+                lifeStatus,
+                triggeredInsuranceIds
+            );
 
-        // 4. Distribui o rendimento proporcionalmente
+            // Marca novos seguros como acionados
+            for (const id of insuranceResult.newlyTriggeredIds) {
+                triggeredInsuranceIds.add(id);
+            }
+
+            insuranceImpact = insuranceResult.netImpact;
+            currentFinancial = Math.max(0, currentFinancial + insuranceImpact);
+        }
+
+        // 4. Calcula rendimento sobre o patrimônio total (após movimentações e seguros)
+        const totalAfterAdjustments = currentFinancial + currentRealEstate;
+        const investmentReturn = calculateAnnualReturn(totalAfterAdjustments, annualRealRate);
+
+        // 5. Distribui o rendimento proporcionalmente
         let financialReturn = 0;
         let realEstateReturn = 0;
 
-        if (totalAfterMovements > 0) {
-            const financialRatio = currentFinancial / totalAfterMovements;
-            const realEstateRatio = currentRealEstate / totalAfterMovements;
+        if (totalAfterAdjustments > 0) {
+            const financialRatio = currentFinancial / totalAfterAdjustments;
+            const realEstateRatio = currentRealEstate / totalAfterAdjustments;
             financialReturn = investmentReturn * financialRatio;
             realEstateReturn = investmentReturn * realEstateRatio;
         }
@@ -236,7 +309,7 @@ export function runProjection(simulation: Simulation): ProjectionResult {
             totalInflows: movementImpact.totalInflows,
             totalOutflows: movementImpact.totalOutflows,
             investmentReturn,
-            insuranceImpact: 0, // Ignorado nesta versão
+            insuranceImpact,
         });
     }
 
