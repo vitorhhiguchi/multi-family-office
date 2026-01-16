@@ -1,0 +1,9 @@
+/**
+ * Placeholder for future modules
+ * This directory will contain business modules like:
+ * - simulations/
+ * - projections/
+ * - movements/
+ * - insurances/
+ */
+export {};

@@ -1,0 +1,5 @@
+/**
+ * Placeholder for domain models
+ * The projection engine will be placed here
+ */
+export {};

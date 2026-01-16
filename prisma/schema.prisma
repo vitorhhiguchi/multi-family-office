@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================================================================
+// ENUMS
+// ==============================================================================
+
+enum LifeStatus {
+  ALIVE
+  DECEASED
+  DISABLED
+}
+
+enum MovementDirection {
+  INFLOW
+  OUTFLOW
+}
+
+enum MovementFrequency {
+  ONE_TIME
+  MONTHLY
+  YEARLY
+}
+
+enum MovementCategory {
+  WORK_INCOME
+  OTHER_INCOME
+  EXPENSE
+}
+
+// ==============================================================================
+// MODELS
+// ==============================================================================
+
+model Simulation {
+  id                 String       @id @default(uuid())
+  name               String
+  startYear          Int
+  endYear            Int
+  annualRealRate     Float
+  financialInitial   Float
+  realEstateInitial  Float
+  initialLifeStatus  LifeStatus   @default(ALIVE)
+  lifeStatusEvents   Json         @default("[]")
+  includeInsurance   Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  movements   Movement[]
+  insurances  Insurance[]
+
+  @@map("simulations")
+}
+
+model Movement {
+  id           String             @id @default(uuid())
+  name         String
+  direction    MovementDirection
+  category     MovementCategory
+  frequency    MovementFrequency
+  amount       Float
+  startYear    Int
+  endYear      Int?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  simulation   Simulation         @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  simulationId String
+
+  @@map("movements")
+}
+
+model Insurance {
+  id               String      @id @default(uuid())
+  name             String
+  coverageAmount   Float
+  monthlyPremium   Float
+  triggerCondition LifeStatus
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  simulation   Simulation      @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  simulationId String
+
+  @@map("insurances")
+}
