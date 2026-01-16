@@ -335,36 +335,6 @@ describe('runProjection', () => {
             expect(yearResult.patrimonyEnd.total).toBe(0);
         });
 
-        it('deve ignorar movimentações MONTHLY e YEARLY', () => {
-            const simulation = createTestSimulation({
-                startYear: 2024,
-                endYear: 2024,
-                annualRealRate: 0,
-                initialPatrimony: { financial: 100000, realEstate: 0 },
-                movements: [
-                    createTestMovement({
-                        frequency: MovementFrequency.MONTHLY,
-                        amount: 5000,
-                        startYear: 2024,
-                    }),
-                    createTestMovement({
-                        id: 'mov-2',
-                        frequency: MovementFrequency.YEARLY,
-                        amount: 10000,
-                        startYear: 2024,
-                    }),
-                ],
-            });
-
-            const result = runProjection(simulation);
-            const yearResult = result.yearlyResults[0];
-
-            // Movimentações MONTHLY e YEARLY devem ser ignoradas
-            expect(yearResult.totalInflows).toBe(0);
-            expect(yearResult.totalOutflows).toBe(0);
-            expect(yearResult.patrimonyEnd.financial).toBe(100000);
-        });
-
         it('deve aplicar múltiplas movimentações no mesmo ano', () => {
             const simulation = createTestSimulation({
                 startYear: 2024,
@@ -394,6 +364,293 @@ describe('runProjection', () => {
             expect(yearResult.totalOutflows).toBe(10000);
             // 100000 + 30000 - 10000 = 120000
             expect(yearResult.patrimonyEnd.financial).toBe(120000);
+        });
+    });
+
+    describe('movimentações MONTHLY', () => {
+        /**
+         * Helper para criar uma movimentação MONTHLY de teste.
+         */
+        function createMonthlyMovement(overrides: Partial<Movement> = {}): Movement {
+            return {
+                id: 'mov-monthly',
+                name: 'Monthly Movement',
+                direction: MovementDirection.INFLOW,
+                category: MovementCategory.OTHER_INCOME,
+                frequency: MovementFrequency.MONTHLY,
+                amount: 1000, // Por mês
+                startYear: 2024,
+                ...overrides,
+            };
+        }
+
+        it('deve aplicar valor * 12 por ano para MONTHLY', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    createMonthlyMovement({
+                        direction: MovementDirection.INFLOW,
+                        amount: 1000, // 1000 * 12 = 12000 por ano
+                        startYear: 2024,
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            expect(yearResult.totalInflows).toBe(12000); // 1000 * 12
+            expect(yearResult.patrimonyEnd.financial).toBe(112000);
+        });
+
+        it('deve aplicar MONTHLY ao longo de múltiplos anos', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026, // 3 anos
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    createMonthlyMovement({
+                        direction: MovementDirection.INFLOW,
+                        amount: 1000,
+                        startYear: 2024,
+                        // Sem endYear = continua até o fim
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // Ano 1: 100000 + 12000 = 112000
+            expect(result.yearlyResults[0].totalInflows).toBe(12000);
+            expect(result.yearlyResults[0].patrimonyEnd.financial).toBe(112000);
+
+            // Ano 2: 112000 + 12000 = 124000
+            expect(result.yearlyResults[1].totalInflows).toBe(12000);
+            expect(result.yearlyResults[1].patrimonyEnd.financial).toBe(124000);
+
+            // Ano 3: 124000 + 12000 = 136000
+            expect(result.yearlyResults[2].totalInflows).toBe(12000);
+            expect(result.yearlyResults[2].patrimonyEnd.financial).toBe(136000);
+        });
+
+        it('deve respeitar endYear para MONTHLY', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    createMonthlyMovement({
+                        direction: MovementDirection.INFLOW,
+                        amount: 1000,
+                        startYear: 2024,
+                        endYear: 2025, // Para em 2025
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // 2024: aplica
+            expect(result.yearlyResults[0].totalInflows).toBe(12000);
+            // 2025: aplica
+            expect(result.yearlyResults[1].totalInflows).toBe(12000);
+            // 2026: NÃO aplica (após endYear)
+            expect(result.yearlyResults[2].totalInflows).toBe(0);
+        });
+
+        it('deve ignorar MONTHLY antes de startYear', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    createMonthlyMovement({
+                        startYear: 2025, // Começa em 2025
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // 2024: NÃO aplica (antes de startYear)
+            expect(result.yearlyResults[0].totalInflows).toBe(0);
+            // 2025: aplica
+            expect(result.yearlyResults[1].totalInflows).toBe(12000);
+            // 2026: aplica
+            expect(result.yearlyResults[2].totalInflows).toBe(12000);
+        });
+    });
+
+    describe('movimentações YEARLY', () => {
+        /**
+         * Helper para criar uma movimentação YEARLY de teste.
+         */
+        function createYearlyMovement(overrides: Partial<Movement> = {}): Movement {
+            return {
+                id: 'mov-yearly',
+                name: 'Yearly Movement',
+                direction: MovementDirection.INFLOW,
+                category: MovementCategory.OTHER_INCOME,
+                frequency: MovementFrequency.YEARLY,
+                amount: 10000,
+                startYear: 2024,
+                ...overrides,
+            };
+        }
+
+        it('deve aplicar valor integral por ano para YEARLY', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    createYearlyMovement({
+                        direction: MovementDirection.INFLOW,
+                        amount: 20000,
+                        startYear: 2024,
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            expect(yearResult.totalInflows).toBe(20000);
+            expect(yearResult.patrimonyEnd.financial).toBe(120000);
+        });
+
+        it('deve aplicar YEARLY ao longo de múltiplos anos', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    createYearlyMovement({
+                        amount: 10000,
+                        startYear: 2024,
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // Cada ano adiciona 10000
+            expect(result.yearlyResults[0].patrimonyEnd.financial).toBe(110000);
+            expect(result.yearlyResults[1].patrimonyEnd.financial).toBe(120000);
+            expect(result.yearlyResults[2].patrimonyEnd.financial).toBe(130000);
+        });
+
+        it('deve respeitar endYear para YEARLY', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    createYearlyMovement({
+                        amount: 10000,
+                        startYear: 2024,
+                        endYear: 2024, // Apenas em 2024
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // 2024: aplica
+            expect(result.yearlyResults[0].totalInflows).toBe(10000);
+            // 2025: NÃO aplica
+            expect(result.yearlyResults[1].totalInflows).toBe(0);
+            // 2026: NÃO aplica
+            expect(result.yearlyResults[2].totalInflows).toBe(0);
+        });
+    });
+
+    describe('combinação de frequências', () => {
+        it('deve combinar ONE_TIME + MONTHLY + YEARLY no mesmo ano', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    {
+                        id: 'one-time',
+                        name: 'One Time',
+                        direction: MovementDirection.INFLOW,
+                        category: MovementCategory.OTHER_INCOME,
+                        frequency: MovementFrequency.ONE_TIME,
+                        amount: 5000,
+                        startYear: 2024,
+                    },
+                    {
+                        id: 'monthly',
+                        name: 'Monthly',
+                        direction: MovementDirection.INFLOW,
+                        category: MovementCategory.OTHER_INCOME,
+                        frequency: MovementFrequency.MONTHLY,
+                        amount: 1000, // 12000 por ano
+                        startYear: 2024,
+                    },
+                    {
+                        id: 'yearly',
+                        name: 'Yearly',
+                        direction: MovementDirection.OUTFLOW,
+                        category: MovementCategory.EXPENSE,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 3000,
+                        startYear: 2024,
+                    },
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            // Inflows: 5000 (one-time) + 12000 (monthly) = 17000
+            expect(yearResult.totalInflows).toBe(17000);
+            // Outflows: 3000 (yearly)
+            expect(yearResult.totalOutflows).toBe(3000);
+            // Net: 17000 - 3000 = 14000
+            // Final: 100000 + 14000 = 114000
+            expect(yearResult.patrimonyEnd.financial).toBe(114000);
+        });
+
+        it('deve aplicar movimentações antes dos juros na combinação', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0.10, // 10%
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                movements: [
+                    {
+                        id: 'monthly',
+                        name: 'Monthly Income',
+                        direction: MovementDirection.INFLOW,
+                        category: MovementCategory.OTHER_INCOME,
+                        frequency: MovementFrequency.MONTHLY,
+                        amount: 5000, // 60000 por ano
+                        startYear: 2024,
+                    },
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            // Após movimentações: 100000 + 60000 = 160000
+            // Juros: 160000 * 0.10 = 16000
+            // Final: 160000 + 16000 = 176000
+            expect(yearResult.investmentReturn).toBe(16000);
+            expect(yearResult.patrimonyEnd.financial).toBe(176000);
         });
     });
 });
