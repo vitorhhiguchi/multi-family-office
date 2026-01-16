@@ -9,11 +9,13 @@
  *   recorrente da taxa sobre o patrimônio acumulado ao longo do tempo)
  * - Separa patrimônio financeiro e imobilizado
  * - Suporta movimentações ONE_TIME, MONTHLY e YEARLY
- * - Ignora seguros e mudanças de status (etapa futura)
+ * - Suporta status de vida (ALIVE, DECEASED, DISABLED)
+ * - Ignora seguros (etapa futura)
  */
 
 import {
     LifeStatus,
+    LifeStatusEvent,
     Movement,
     MovementDirection,
     MovementFrequency,
@@ -42,6 +44,37 @@ function createPatrimonyBreakdown(financial: number, realEstate: number): Patrim
  */
 function calculateAnnualReturn(value: number, rate: number): number {
     return value * rate;
+}
+
+/**
+ * Resolve o status de vida ativo para um determinado ano.
+ * 
+ * Busca o evento mais recente (ano <= year) e retorna o status correspondente.
+ * Se não houver eventos aplicáveis, retorna o status inicial.
+ * 
+ * @param initialStatus Status de vida inicial da simulação
+ * @param events Lista de eventos de mudança de status
+ * @param year Ano para resolver o status
+ * @returns Status de vida ativo no ano
+ */
+function resolveLifeStatusForYear(
+    initialStatus: LifeStatus,
+    events: LifeStatusEvent[],
+    year: number
+): LifeStatus {
+    // Filtra eventos que já ocorreram (ano <= year)
+    const applicableEvents = events.filter(e => e.year <= year);
+
+    if (applicableEvents.length === 0) {
+        return initialStatus;
+    }
+
+    // Pega o evento mais recente
+    const latestEvent = applicableEvents.reduce((latest, current) =>
+        current.year > latest.year ? current : latest
+    );
+
+    return latestEvent.status;
 }
 
 /**
@@ -80,15 +113,23 @@ function getAnnualMovementAmount(movement: Movement, year: number): number {
 }
 
 /**
- * Calcula o impacto líquido das movimentações em um ano.
- * Suporta ONE_TIME, MONTHLY e YEARLY.
+ * Calcula o impacto líquido das movimentações em um ano,
+ * considerando o status de vida ativo.
+ * 
+ * Regras por status:
+ * - ALIVE: entradas e saídas aplicadas normalmente
+ * - DECEASED: entradas ignoradas, despesas aplicadas com 50%
+ * - DISABLED: entradas ignoradas, despesas aplicadas normalmente
+ * 
  * @param movements Lista de movimentações
  * @param year Ano para calcular
+ * @param lifeStatus Status de vida ativo no ano
  * @returns Objeto com totalInflows, totalOutflows e netImpact
  */
 function calculateMovementsImpact(
     movements: Movement[],
-    year: number
+    year: number,
+    lifeStatus: LifeStatus
 ): { totalInflows: number; totalOutflows: number; netImpact: number } {
     let totalInflows = 0;
     let totalOutflows = 0;
@@ -101,9 +142,20 @@ function calculateMovementsImpact(
         }
 
         if (movement.direction === MovementDirection.INFLOW) {
+            // DECEASED e DISABLED: entradas não são aplicadas
+            if (lifeStatus === LifeStatus.DECEASED || lifeStatus === LifeStatus.DISABLED) {
+                continue;
+            }
             totalInflows += annualAmount;
         } else {
-            totalOutflows += annualAmount;
+            // OUTFLOW (despesas)
+            if (lifeStatus === LifeStatus.DECEASED) {
+                // DECEASED: despesas com 50%
+                totalOutflows += annualAmount * 0.5;
+            } else {
+                // ALIVE e DISABLED: despesas normais
+                totalOutflows += annualAmount;
+            }
         }
     }
 
@@ -118,15 +170,24 @@ function calculateMovementsImpact(
  * Gera a projeção patrimonial ano a ano.
  *
  * Ordem de cálculo por ano:
- * 1. Aplica movimentações (ONE_TIME, MONTHLY, YEARLY)
- * 2. Calcula rendimento sobre patrimônio total (após movimentações)
- * 3. Distribui rendimento proporcionalmente
+ * 1. Resolve status de vida ativo para o ano
+ * 2. Aplica movimentações (respeitando regras de status de vida)
+ * 3. Calcula rendimento sobre patrimônio total (após movimentações)
+ * 4. Distribui rendimento proporcionalmente
  *
  * @param simulation Configuração da simulação
  * @returns Resultado da projeção com lista de resultados anuais
  */
 export function runProjection(simulation: Simulation): ProjectionResult {
-    const { startYear, endYear, annualRealRate, initialPatrimony, movements } = simulation;
+    const {
+        startYear,
+        endYear,
+        annualRealRate,
+        initialPatrimony,
+        movements,
+        initialLifeStatus,
+        lifeStatusEvents,
+    } = simulation;
 
     const yearlyResults: YearlyProjectionResult[] = [];
 
@@ -136,18 +197,21 @@ export function runProjection(simulation: Simulation): ProjectionResult {
     for (let year = startYear; year <= endYear; year++) {
         const patrimonyStart = createPatrimonyBreakdown(currentFinancial, currentRealEstate);
 
-        // 1. Aplica movimentações (antes dos juros)
-        const movementImpact = calculateMovementsImpact(movements, year);
+        // 1. Resolve status de vida para o ano
+        const lifeStatus = resolveLifeStatusForYear(initialLifeStatus, lifeStatusEvents, year);
+
+        // 2. Aplica movimentações (respeitando status de vida)
+        const movementImpact = calculateMovementsImpact(movements, year, lifeStatus);
 
         // Movimentações afetam apenas patrimônio financeiro
         // Patrimônio não pode ficar negativo
         currentFinancial = Math.max(0, currentFinancial + movementImpact.netImpact);
 
-        // 2. Calcula rendimento sobre o patrimônio total (após movimentações)
+        // 3. Calcula rendimento sobre o patrimônio total (após movimentações)
         const totalAfterMovements = currentFinancial + currentRealEstate;
         const investmentReturn = calculateAnnualReturn(totalAfterMovements, annualRealRate);
 
-        // 3. Distribui o rendimento proporcionalmente
+        // 4. Distribui o rendimento proporcionalmente
         let financialReturn = 0;
         let realEstateReturn = 0;
 
@@ -166,7 +230,7 @@ export function runProjection(simulation: Simulation): ProjectionResult {
 
         yearlyResults.push({
             year,
-            lifeStatus: LifeStatus.ALIVE, // Status dinâmico será tratado em etapa futura
+            lifeStatus,
             patrimonyStart,
             patrimonyEnd,
             totalInflows: movementImpact.totalInflows,
