@@ -6,10 +6,9 @@
  *
  * Escopo atual:
  * - Aplica juros compostos anuais (o efeito composto emerge da aplicação
- * - recorrente da taxa sobre o patrimônio acumulado ao longo do tempo)
+ *   recorrente da taxa sobre o patrimônio acumulado ao longo do tempo)
  * - Separa patrimônio financeiro e imobilizado
- * - Suporta movimentações ONE_TIME (entradas e saídas pontuais)
- * - Ignora movimentações MONTHLY e YEARLY (etapa futura)
+ * - Suporta movimentações ONE_TIME, MONTHLY e YEARLY
  * - Ignora seguros e mudanças de status (etapa futura)
  */
 
@@ -46,12 +45,48 @@ function calculateAnnualReturn(value: number, rate: number): number {
 }
 
 /**
- * Calcula o impacto líquido das movimentações ONE_TIME em um ano.
+ * Verifica se uma movimentação está ativa em um determinado ano.
+ */
+function isMovementActiveInYear(movement: Movement, year: number): boolean {
+    if (year < movement.startYear) {
+        return false;
+    }
+    if (movement.endYear !== undefined && year > movement.endYear) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Calcula o valor anual de uma movimentação baseado na frequência.
+ * - ONE_TIME: valor integral apenas no startYear
+ * - MONTHLY: valor * 12 por ano
+ * - YEARLY: valor integral por ano
+ */
+function getAnnualMovementAmount(movement: Movement, year: number): number {
+    switch (movement.frequency) {
+        case MovementFrequency.ONE_TIME:
+            // ONE_TIME só aplica no startYear
+            return movement.startYear === year ? movement.amount : 0;
+        case MovementFrequency.MONTHLY:
+            // MONTHLY aplica valor * 12 se estiver no período
+            return isMovementActiveInYear(movement, year) ? movement.amount * 12 : 0;
+        case MovementFrequency.YEARLY:
+            // YEARLY aplica valor integral se estiver no período
+            return isMovementActiveInYear(movement, year) ? movement.amount : 0;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * Calcula o impacto líquido das movimentações em um ano.
+ * Suporta ONE_TIME, MONTHLY e YEARLY.
  * @param movements Lista de movimentações
- * @param year Ano para filtrar
+ * @param year Ano para calcular
  * @returns Objeto com totalInflows, totalOutflows e netImpact
  */
-function calculateOneTimeMovementsImpact(
+function calculateMovementsImpact(
     movements: Movement[],
     year: number
 ): { totalInflows: number; totalOutflows: number; netImpact: number } {
@@ -59,18 +94,16 @@ function calculateOneTimeMovementsImpact(
     let totalOutflows = 0;
 
     for (const movement of movements) {
-        // Apenas movimentações ONE_TIME no ano especificado
-        if (movement.frequency !== MovementFrequency.ONE_TIME) {
-            continue;
-        }
-        if (movement.startYear !== year) {
+        const annualAmount = getAnnualMovementAmount(movement, year);
+
+        if (annualAmount === 0) {
             continue;
         }
 
         if (movement.direction === MovementDirection.INFLOW) {
-            totalInflows += movement.amount;
+            totalInflows += annualAmount;
         } else {
-            totalOutflows += movement.amount;
+            totalOutflows += annualAmount;
         }
     }
 
@@ -85,7 +118,7 @@ function calculateOneTimeMovementsImpact(
  * Gera a projeção patrimonial ano a ano.
  *
  * Ordem de cálculo por ano:
- * 1. Aplica movimentações ONE_TIME (afetam patrimônio financeiro)
+ * 1. Aplica movimentações (ONE_TIME, MONTHLY, YEARLY)
  * 2. Calcula rendimento sobre patrimônio total (após movimentações)
  * 3. Distribui rendimento proporcionalmente
  *
@@ -103,8 +136,8 @@ export function runProjection(simulation: Simulation): ProjectionResult {
     for (let year = startYear; year <= endYear; year++) {
         const patrimonyStart = createPatrimonyBreakdown(currentFinancial, currentRealEstate);
 
-        // 1. Aplica movimentações ONE_TIME (antes dos juros)
-        const movementImpact = calculateOneTimeMovementsImpact(movements, year);
+        // 1. Aplica movimentações (antes dos juros)
+        const movementImpact = calculateMovementsImpact(movements, year);
 
         // Movimentações afetam apenas patrimônio financeiro
         // Patrimônio não pode ficar negativo
