@@ -653,4 +653,253 @@ describe('runProjection', () => {
             expect(yearResult.patrimonyEnd.financial).toBe(176000);
         });
     });
+
+    describe('status de vida', () => {
+        it('ALIVE deve aplicar movimentações normalmente', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.ALIVE,
+                lifeStatusEvents: [],
+                movements: [
+                    {
+                        id: 'income',
+                        name: 'Salary',
+                        direction: MovementDirection.INFLOW,
+                        category: MovementCategory.WORK_INCOME,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 20000,
+                        startYear: 2024,
+                    },
+                    {
+                        id: 'expense',
+                        name: 'Living Cost',
+                        direction: MovementDirection.OUTFLOW,
+                        category: MovementCategory.EXPENSE,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 10000,
+                        startYear: 2024,
+                    },
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            expect(yearResult.lifeStatus).toBe(LifeStatus.ALIVE);
+            expect(yearResult.totalInflows).toBe(20000);
+            expect(yearResult.totalOutflows).toBe(10000);
+            expect(yearResult.patrimonyEnd.financial).toBe(110000); // 100k + 20k - 10k
+        });
+
+        it('DECEASED deve ignorar entradas e aplicar 50% das despesas', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DECEASED,
+                lifeStatusEvents: [],
+                movements: [
+                    {
+                        id: 'income',
+                        name: 'Salary',
+                        direction: MovementDirection.INFLOW,
+                        category: MovementCategory.WORK_INCOME,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 20000,
+                        startYear: 2024,
+                    },
+                    {
+                        id: 'expense',
+                        name: 'Living Cost',
+                        direction: MovementDirection.OUTFLOW,
+                        category: MovementCategory.EXPENSE,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 10000,
+                        startYear: 2024,
+                    },
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            expect(yearResult.lifeStatus).toBe(LifeStatus.DECEASED);
+            expect(yearResult.totalInflows).toBe(0); // Entradas ignoradas
+            expect(yearResult.totalOutflows).toBe(5000); // 50% de 10000
+            expect(yearResult.patrimonyEnd.financial).toBe(95000); // 100k - 5k
+        });
+
+        it('DISABLED deve ignorar entradas e manter despesas integrais', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DISABLED,
+                lifeStatusEvents: [],
+                movements: [
+                    {
+                        id: 'income',
+                        name: 'Salary',
+                        direction: MovementDirection.INFLOW,
+                        category: MovementCategory.WORK_INCOME,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 20000,
+                        startYear: 2024,
+                    },
+                    {
+                        id: 'expense',
+                        name: 'Living Cost',
+                        direction: MovementDirection.OUTFLOW,
+                        category: MovementCategory.EXPENSE,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 10000,
+                        startYear: 2024,
+                    },
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            expect(yearResult.lifeStatus).toBe(LifeStatus.DISABLED);
+            expect(yearResult.totalInflows).toBe(0); // Entradas ignoradas
+            expect(yearResult.totalOutflows).toBe(10000); // Despesas integrais
+            expect(yearResult.patrimonyEnd.financial).toBe(90000); // 100k - 10k
+        });
+
+        it('deve respeitar mudança de status via lifeStatusEvents', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.ALIVE,
+                lifeStatusEvents: [
+                    { year: 2025, status: LifeStatus.DISABLED },
+                    { year: 2026, status: LifeStatus.DECEASED },
+                ],
+                movements: [
+                    {
+                        id: 'income',
+                        name: 'Salary',
+                        direction: MovementDirection.INFLOW,
+                        category: MovementCategory.WORK_INCOME,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 10000,
+                        startYear: 2024,
+                    },
+                    {
+                        id: 'expense',
+                        name: 'Living Cost',
+                        direction: MovementDirection.OUTFLOW,
+                        category: MovementCategory.EXPENSE,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 6000,
+                        startYear: 2024,
+                    },
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // 2024: ALIVE - entrada normal, despesa normal
+            expect(result.yearlyResults[0].lifeStatus).toBe(LifeStatus.ALIVE);
+            expect(result.yearlyResults[0].totalInflows).toBe(10000);
+            expect(result.yearlyResults[0].totalOutflows).toBe(6000);
+            // 100k + 10k - 6k = 104k
+            expect(result.yearlyResults[0].patrimonyEnd.financial).toBe(104000);
+
+            // 2025: DISABLED - sem entrada, despesa integral
+            expect(result.yearlyResults[1].lifeStatus).toBe(LifeStatus.DISABLED);
+            expect(result.yearlyResults[1].totalInflows).toBe(0);
+            expect(result.yearlyResults[1].totalOutflows).toBe(6000);
+            // 104k - 6k = 98k
+            expect(result.yearlyResults[1].patrimonyEnd.financial).toBe(98000);
+
+            // 2026: DECEASED - sem entrada, despesa 50%
+            expect(result.yearlyResults[2].lifeStatus).toBe(LifeStatus.DECEASED);
+            expect(result.yearlyResults[2].totalInflows).toBe(0);
+            expect(result.yearlyResults[2].totalOutflows).toBe(3000); // 50% de 6000
+            // 98k - 3k = 95k
+            expect(result.yearlyResults[2].patrimonyEnd.financial).toBe(95000);
+        });
+
+        it('juros devem ser aplicados após movimentações ajustadas por status', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0.10, // 10%
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DECEASED,
+                lifeStatusEvents: [],
+                movements: [
+                    {
+                        id: 'expense',
+                        name: 'Living Cost',
+                        direction: MovementDirection.OUTFLOW,
+                        category: MovementCategory.EXPENSE,
+                        frequency: MovementFrequency.YEARLY,
+                        amount: 20000, // 50% = 10000
+                        startYear: 2024,
+                    },
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            // Patrimônio após movimentação: 100000 - 10000 (50% de 20000) = 90000
+            // Juros: 90000 * 0.10 = 9000
+            // Final: 90000 + 9000 = 99000
+            expect(yearResult.totalOutflows).toBe(10000);
+            expect(yearResult.investmentReturn).toBe(9000);
+            expect(yearResult.patrimonyEnd.financial).toBe(99000);
+        });
+
+        it('deve usar status inicial quando não há eventos', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DISABLED,
+                lifeStatusEvents: [], // Sem eventos
+                movements: [],
+            });
+
+            const result = runProjection(simulation);
+
+            // Todos os anos devem ter status DISABLED
+            for (const yearResult of result.yearlyResults) {
+                expect(yearResult.lifeStatus).toBe(LifeStatus.DISABLED);
+            }
+        });
+
+        it('evento de status deve persistir para anos subsequentes', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2028,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.ALIVE,
+                lifeStatusEvents: [
+                    { year: 2025, status: LifeStatus.DECEASED },
+                ],
+                movements: [],
+            });
+
+            const result = runProjection(simulation);
+
+            expect(result.yearlyResults[0].lifeStatus).toBe(LifeStatus.ALIVE); // 2024
+            expect(result.yearlyResults[1].lifeStatus).toBe(LifeStatus.DECEASED); // 2025
+            expect(result.yearlyResults[2].lifeStatus).toBe(LifeStatus.DECEASED); // 2026
+            expect(result.yearlyResults[3].lifeStatus).toBe(LifeStatus.DECEASED); // 2027
+            expect(result.yearlyResults[4].lifeStatus).toBe(LifeStatus.DECEASED); // 2028
+        });
+    });
 });
