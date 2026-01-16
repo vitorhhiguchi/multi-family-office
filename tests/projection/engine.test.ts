@@ -1,5 +1,6 @@
 import { runProjection } from '../../src/projection/engine';
 import {
+    Insurance,
     LifeStatus,
     Movement,
     MovementCategory,
@@ -900,6 +901,219 @@ describe('runProjection', () => {
             expect(result.yearlyResults[2].lifeStatus).toBe(LifeStatus.DECEASED); // 2026
             expect(result.yearlyResults[3].lifeStatus).toBe(LifeStatus.DECEASED); // 2027
             expect(result.yearlyResults[4].lifeStatus).toBe(LifeStatus.DECEASED); // 2028
+        });
+    });
+
+    describe('seguros', () => {
+        /**
+         * Helper para criar um seguro de teste.
+         */
+        function createTestInsurance(overrides: Partial<Insurance> = {}): Insurance {
+            return {
+                id: 'insurance-1',
+                name: 'Life Insurance',
+                coverageAmount: 500000,
+                monthlyPremium: 500, // 6000 por ano
+                triggerCondition: LifeStatus.DECEASED,
+                ...overrides,
+            };
+        }
+
+        it('deve ignorar seguros quando includeInsurance = false', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DECEASED, // Trigger já ativo
+                includeInsurance: false,
+                insurances: [createTestInsurance()],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            // Seguro ignorado = sem impacto
+            expect(yearResult.insuranceImpact).toBe(0);
+            expect(yearResult.patrimonyEnd.financial).toBe(100000);
+        });
+
+        it('deve aplicar prêmio anualmente quando includeInsurance = true', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026, // 3 anos
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.ALIVE,
+                includeInsurance: true,
+                insurances: [
+                    createTestInsurance({
+                        monthlyPremium: 1000, // 12000 por ano
+                        triggerCondition: LifeStatus.DECEASED, // Nunca acionado
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // Cada ano: -12000 de prêmio
+            expect(result.yearlyResults[0].insuranceImpact).toBe(-12000);
+            expect(result.yearlyResults[0].patrimonyEnd.financial).toBe(88000);
+
+            expect(result.yearlyResults[1].insuranceImpact).toBe(-12000);
+            expect(result.yearlyResults[1].patrimonyEnd.financial).toBe(76000);
+
+            expect(result.yearlyResults[2].insuranceImpact).toBe(-12000);
+            expect(result.yearlyResults[2].patrimonyEnd.financial).toBe(64000);
+        });
+
+        it('deve aplicar indenização no ano em que trigger é atingido', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2026,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.ALIVE,
+                lifeStatusEvents: [
+                    { year: 2025, status: LifeStatus.DECEASED },
+                ],
+                includeInsurance: true,
+                insurances: [
+                    createTestInsurance({
+                        coverageAmount: 200000,
+                        monthlyPremium: 500, // 6000 por ano
+                        triggerCondition: LifeStatus.DECEASED,
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // 2024: ALIVE - apenas prêmio
+            expect(result.yearlyResults[0].lifeStatus).toBe(LifeStatus.ALIVE);
+            expect(result.yearlyResults[0].insuranceImpact).toBe(-6000);
+            expect(result.yearlyResults[0].patrimonyEnd.financial).toBe(94000);
+
+            // 2025: DECEASED - prêmio + indenização
+            expect(result.yearlyResults[1].lifeStatus).toBe(LifeStatus.DECEASED);
+            // Impact = 200000 (coverage) - 6000 (premium) = 194000
+            expect(result.yearlyResults[1].insuranceImpact).toBe(194000);
+            // 94000 + 194000 = 288000
+            expect(result.yearlyResults[1].patrimonyEnd.financial).toBe(288000);
+
+            // 2026: DECEASED - apenas prêmio (indenização já foi paga)
+            expect(result.yearlyResults[2].lifeStatus).toBe(LifeStatus.DECEASED);
+            expect(result.yearlyResults[2].insuranceImpact).toBe(-6000);
+        });
+
+        it('deve aplicar indenização apenas uma vez', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2027, // 4 anos
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DECEASED, // Já inicia com trigger
+                includeInsurance: true,
+                insurances: [
+                    createTestInsurance({
+                        coverageAmount: 100000,
+                        monthlyPremium: 500, // 6000 por ano
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // Ano 1: prêmio + indenização
+            expect(result.yearlyResults[0].insuranceImpact).toBe(94000); // 100000 - 6000
+
+            // Anos 2-4: apenas prêmio (indenização já foi paga)
+            expect(result.yearlyResults[1].insuranceImpact).toBe(-6000);
+            expect(result.yearlyResults[2].insuranceImpact).toBe(-6000);
+            expect(result.yearlyResults[3].insuranceImpact).toBe(-6000);
+        });
+
+        it('deve respeitar triggerCondition específica', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2025,
+                annualRealRate: 0,
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DISABLED, // Diferente do trigger
+                includeInsurance: true,
+                insurances: [
+                    createTestInsurance({
+                        coverageAmount: 500000,
+                        monthlyPremium: 1000,
+                        triggerCondition: LifeStatus.DECEASED, // Nunca acionado
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // Apenas prêmio, sem indenização (status é DISABLED, não DECEASED)
+            expect(result.yearlyResults[0].insuranceImpact).toBe(-12000);
+            expect(result.yearlyResults[1].insuranceImpact).toBe(-12000);
+        });
+
+        it('seguro não deve ter efeito quando status nunca atinge trigger', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2030, // 7 anos
+                annualRealRate: 0,
+                initialPatrimony: { financial: 200000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.ALIVE,
+                lifeStatusEvents: [], // Sempre ALIVE
+                includeInsurance: true,
+                insurances: [
+                    createTestInsurance({
+                        coverageAmount: 1000000,
+                        monthlyPremium: 2000, // 24000 por ano
+                        triggerCondition: LifeStatus.DECEASED,
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+
+            // 7 anos de prêmio sem indenização = apenas custo
+            // Cada ano: -24000
+            // Final: 200000 - (24000 * 7) = 200000 - 168000 = 32000
+            expect(result.yearlyResults[6].patrimonyEnd.financial).toBe(32000);
+
+            // Todos os anos devem ter apenas impacto negativo (prêmio)
+            for (const yearResult of result.yearlyResults) {
+                expect(yearResult.insuranceImpact).toBe(-24000);
+            }
+        });
+
+        it('juros devem ser aplicados após impacto de seguros', () => {
+            const simulation = createTestSimulation({
+                startYear: 2024,
+                endYear: 2024,
+                annualRealRate: 0.10, // 10%
+                initialPatrimony: { financial: 100000, realEstate: 0 },
+                initialLifeStatus: LifeStatus.DECEASED,
+                includeInsurance: true,
+                insurances: [
+                    createTestInsurance({
+                        coverageAmount: 50000,
+                        monthlyPremium: 0, // Sem prêmio para simplificar
+                        triggerCondition: LifeStatus.DECEASED,
+                    }),
+                ],
+            });
+
+            const result = runProjection(simulation);
+            const yearResult = result.yearlyResults[0];
+
+            // Patrimônio após seguro: 100000 + 50000 = 150000
+            // Juros: 150000 * 0.10 = 15000
+            // Final: 150000 + 15000 = 165000
+            expect(yearResult.insuranceImpact).toBe(50000);
+            expect(yearResult.investmentReturn).toBe(15000);
+            expect(yearResult.patrimonyEnd.financial).toBe(165000);
         });
     });
 });
