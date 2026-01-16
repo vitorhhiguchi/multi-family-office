@@ -1,18 +1,23 @@
 /**
- * Motor de Projeção Patrimonial - Base
+ * Motor de Projeção Patrimonial
  *
  * Função pura que calcula a projeção ano a ano aplicando
  * taxa real composta sobre o patrimônio.
  *
- * Escopo atual (MVP):
- * - Aplica juros compostos anuais
- * - Juros compostos emergem da aplicação anual da taxa sobre o patrimônio acumulado ao longo do loop
+ * Escopo atual:
+ * - Aplica juros compostos anuais (o efeito composto emerge da aplicação
+ * - recorrente da taxa sobre o patrimônio acumulado ao longo do tempo)
  * - Separa patrimônio financeiro e imobilizado
- * - Ignora movimentações, seguros e mudanças de status
+ * - Suporta movimentações ONE_TIME (entradas e saídas pontuais)
+ * - Ignora movimentações MONTHLY e YEARLY (etapa futura)
+ * - Ignora seguros e mudanças de status (etapa futura)
  */
 
 import {
     LifeStatus,
+    Movement,
+    MovementDirection,
+    MovementFrequency,
     PatrimonyBreakdown,
     ProjectionResult,
     Simulation,
@@ -41,18 +46,54 @@ function calculateAnnualReturn(value: number, rate: number): number {
 }
 
 /**
+ * Calcula o impacto líquido das movimentações ONE_TIME em um ano.
+ * @param movements Lista de movimentações
+ * @param year Ano para filtrar
+ * @returns Objeto com totalInflows, totalOutflows e netImpact
+ */
+function calculateOneTimeMovementsImpact(
+    movements: Movement[],
+    year: number
+): { totalInflows: number; totalOutflows: number; netImpact: number } {
+    let totalInflows = 0;
+    let totalOutflows = 0;
+
+    for (const movement of movements) {
+        // Apenas movimentações ONE_TIME no ano especificado
+        if (movement.frequency !== MovementFrequency.ONE_TIME) {
+            continue;
+        }
+        if (movement.startYear !== year) {
+            continue;
+        }
+
+        if (movement.direction === MovementDirection.INFLOW) {
+            totalInflows += movement.amount;
+        } else {
+            totalOutflows += movement.amount;
+        }
+    }
+
+    return {
+        totalInflows,
+        totalOutflows,
+        netImpact: totalInflows - totalOutflows,
+    };
+}
+
+/**
  * Gera a projeção patrimonial ano a ano.
  *
- * Nesta versão base:
- * - A taxa real é aplicada sobre o patrimônio total no início de cada ano
- * - O rendimento é distribuído proporcionalmente entre financeiro e imobilizado
- * - Movimentações, seguros e status de vida são ignorados
+ * Ordem de cálculo por ano:
+ * 1. Aplica movimentações ONE_TIME (afetam patrimônio financeiro)
+ * 2. Calcula rendimento sobre patrimônio total (após movimentações)
+ * 3. Distribui rendimento proporcionalmente
  *
  * @param simulation Configuração da simulação
  * @returns Resultado da projeção com lista de resultados anuais
  */
 export function runProjection(simulation: Simulation): ProjectionResult {
-    const { startYear, endYear, annualRealRate, initialPatrimony } = simulation;
+    const { startYear, endYear, annualRealRate, initialPatrimony, movements } = simulation;
 
     const yearlyResults: YearlyProjectionResult[] = [];
 
@@ -62,18 +103,24 @@ export function runProjection(simulation: Simulation): ProjectionResult {
     for (let year = startYear; year <= endYear; year++) {
         const patrimonyStart = createPatrimonyBreakdown(currentFinancial, currentRealEstate);
 
-        // Calcula rendimento sobre o patrimônio total
-        const totalStart = patrimonyStart.total;
-        const investmentReturn = calculateAnnualReturn(totalStart, annualRealRate);
+        // 1. Aplica movimentações ONE_TIME (antes dos juros)
+        const movementImpact = calculateOneTimeMovementsImpact(movements, year);
 
-        // Distribui o rendimento proporcionalmente
-        // Se patrimônio total é 0, não há distribuição
+        // Movimentações afetam apenas patrimônio financeiro
+        // Patrimônio não pode ficar negativo
+        currentFinancial = Math.max(0, currentFinancial + movementImpact.netImpact);
+
+        // 2. Calcula rendimento sobre o patrimônio total (após movimentações)
+        const totalAfterMovements = currentFinancial + currentRealEstate;
+        const investmentReturn = calculateAnnualReturn(totalAfterMovements, annualRealRate);
+
+        // 3. Distribui o rendimento proporcionalmente
         let financialReturn = 0;
         let realEstateReturn = 0;
 
-        if (totalStart > 0) {
-            const financialRatio = currentFinancial / totalStart;
-            const realEstateRatio = currentRealEstate / totalStart;
+        if (totalAfterMovements > 0) {
+            const financialRatio = currentFinancial / totalAfterMovements;
+            const realEstateRatio = currentRealEstate / totalAfterMovements;
             financialReturn = investmentReturn * financialRatio;
             realEstateReturn = investmentReturn * realEstateRatio;
         }
@@ -86,11 +133,11 @@ export function runProjection(simulation: Simulation): ProjectionResult {
 
         yearlyResults.push({
             year,
-            lifeStatus: LifeStatus.ALIVE, // Ignorado nesta versão / status dinâmico será tratado em etapa futura
+            lifeStatus: LifeStatus.ALIVE, // Status dinâmico será tratado em etapa futura
             patrimonyStart,
             patrimonyEnd,
-            totalInflows: 0, // Ignorado nesta versão
-            totalOutflows: 0, // Ignorado nesta versão
+            totalInflows: movementImpact.totalInflows,
+            totalOutflows: movementImpact.totalOutflows,
             investmentReturn,
             insuranceImpact: 0, // Ignorado nesta versão
         });
