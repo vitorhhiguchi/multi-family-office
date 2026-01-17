@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id          Int          @id @default(autoincrement())
+  name        String
+  birthDate   DateTime
+  simulations Simulation[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Simulation {
+  id                 Int         @id @default(autoincrement())
+  name               String
+  startDate          DateTime
+  realRate           Float       @default(0.04)
+  isCurrentSituation Boolean     @default(false)
+  version            Int         @default(1)
+  clientId           Int
+  client             Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assets             Asset[]
+  movements          Movement[]
+  insurances         Insurance[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([clientId, name, version])
+}
+
+model Asset {
+  id           Int           @id @default(autoincrement())
+  name         String
+  type         AssetType
+  simulationId Int
+  simulation   Simulation    @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  records      AssetRecord[]
+  financing    Financing?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+enum AssetType {
+  FINANCIAL
+  REAL_ESTATE
+}
+
+model AssetRecord {
+  id        Int      @id @default(autoincrement())
+  assetId   Int
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  value     Float
+  date      DateTime
+  createdAt DateTime @default(now())
+}
+
+model Financing {
+  id           Int      @id @default(autoincrement())
+  assetId      Int      @unique
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  startDate    DateTime
+  installments Int
+  interestRate Float
+  downPayment  Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Movement {
+  id           Int             @id @default(autoincrement())
+  name         String
+  type         MovementType
+  category     IncomeCategory?
+  value        Float
+  frequency    Frequency
+  startDate    DateTime
+  endDate      DateTime?
+  simulationId Int
+  simulation   Simulation      @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+enum MovementType {
+  INCOME
+  EXPENSE
+}
+
+enum IncomeCategory {
+  WORK
+  PASSIVE
+  OTHER
+}
+
+enum Frequency {
+  ONCE
+  MONTHLY
+  YEARLY
+}
+
+model Insurance {
+  id             Int           @id @default(autoincrement())
+  name           String
+  type           InsuranceType
+  startDate      DateTime
+  durationMonths Int
+  premium        Float
+  insuredValue   Float
+  simulationId   Int
+  simulation     Simulation    @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum InsuranceType {
+  LIFE
+  DISABILITY
+}
