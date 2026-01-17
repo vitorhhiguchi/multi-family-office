@@ -1,2 +1,2 @@
-// Charts barrel export
-// ProjectionChart, TimelineChart, ComparisonChart, etc.
+// Charts components
+export { ProjectionChart } from './projection-chart';
