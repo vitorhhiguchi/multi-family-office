@@ -3,7 +3,12 @@ import type { ProjectionResult, ProjectionInput, LifeStatus } from '@/types';
 
 export const projectionsService = {
     async generate(input: ProjectionInput): Promise<ProjectionResult> {
-        const { data } = await api.post<ProjectionResult>('/projections', input);
+        // Backend expects 'status' field, not 'lifeStatus'
+        const { data } = await api.post<ProjectionResult>('/projections', {
+            simulationId: input.simulationId,
+            endYear: input.endYear,
+            status: input.lifeStatus || 'ALIVE',
+        });
         return data;
     },
 
