@@ -10,7 +10,7 @@ import { ProjectionChart } from '@/components/charts';
 import { Timeline } from '@/components/timeline';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Plus, Loader2 } from 'lucide-react';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import type { Client, Simulation, Insurance, Movement } from '@/types';
 
 import {
@@ -295,7 +295,6 @@ export default function ProjectionPage() {
 
     return (
         <MainLayout>
-            <Toaster position="top-right" richColors theme="dark" />
             <div className="min-h-screen bg-background p-6 lg:p-8">
                 {/* Header Tabs */}
                 <div className="flex items-center justify-center gap-8 mb-8">
