@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, Building2, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface AssetModalProps {
     open: boolean;
@@ -83,17 +84,26 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
         setIsLoading(true);
 
         try {
+            const initialVal = parseFloat(initialValue) || 0;
+            const downPay = parseFloat(downPayment) || 0;
+
+            if (type === 'REAL_ESTATE' && isFinanced && downPay >= initialVal) {
+                toast.error("O valor da entrada deve ser menor que o valor total do ativo.");
+                setIsLoading(false);
+                return;
+            }
+
             const payload: CreateAssetInput = {
                 simulationId,
                 name,
                 type,
-                initialValue: parseFloat(initialValue) || 0,
+                initialValue: initialVal,
                 initialDate,
                 financing: (type === 'REAL_ESTATE' && isFinanced) ? {
                     startDate: financingStartDate || initialDate,
                     installments: parseInt(installments) || 0,
                     interestRate: parseFloat(interestRate) || 0,
-                    downPayment: parseFloat(downPayment) || 0,
+                    downPayment: downPay,
                 } : undefined
             };
 
