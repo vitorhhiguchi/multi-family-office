@@ -130,6 +130,11 @@ export default function ProjectionPage() {
     // We use this for adding movements/insurances context
     const activeSimulationId = selectedSimulationIds.length > 0 ? selectedSimulationIds[0] : undefined;
 
+    // Legacy Version Detection
+    // If the active simulation ID is NOT in the list of "latest" simulations (returned by default useSimulations),
+    // it means we are viewing an old version extracted from the History page.
+    const isLegacy = activeSimulationId && simulations && !simulations.find(s => s.id === activeSimulationId);
+
     // Fetch dependent data
     const { data: movements } = useMovements(activeSimulationId);
     const { data: insurances } = useInsurances(activeSimulationId);
@@ -466,6 +471,18 @@ export default function ProjectionPage() {
                     <ClientNavigation />
                 </div>
 
+                {isLegacy && (
+                    <div className="mb-6 mx-auto max-w-4xl bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                            <div>
+                                <h3 className="text-yellow-500 font-semibold text-sm">Modo Histórico (Apenas Leitura)</h3>
+                                <p className="text-yellow-500/80 text-xs">Você está visualizando uma versão antiga. Para editar, crie uma nova versão.</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Client & Patrimony Section */}
                 <div className="flex flex-col lg:flex-row items-start gap-8 mb-8">
                     {/* Left: Total */}
@@ -644,13 +661,15 @@ export default function ProjectionPage() {
                         </div>
 
                         <div className="flex justify-end">
-                            <button
-                                onClick={() => setIsMovementModalOpen(true)}
-                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Adicionar
-                            </button>
+                            {!isLegacy && (
+                                <button
+                                    onClick={() => setIsMovementModalOpen(true)}
+                                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Adicionar
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -664,8 +683,8 @@ export default function ProjectionPage() {
                                             key={`asset-${item.id}`}
                                             asset={item}
                                             date={new Date()}
-                                            onEdit={handleEditAsset}
-                                            onDelete={handleDeleteAsset}
+                                            onEdit={!isLegacy ? handleEditAsset : undefined}
+                                            onDelete={!isLegacy ? handleDeleteAsset : undefined}
                                         />
                                     );
                                 }
@@ -673,8 +692,8 @@ export default function ProjectionPage() {
                                     <MovementCard
                                         key={`mov-${item.id}`}
                                         movement={item}
-                                        onEdit={handleEditMovement}
-                                        onDelete={handleDeleteMovement}
+                                        onEdit={!isLegacy ? handleEditMovement : undefined}
+                                        onDelete={!isLegacy ? handleDeleteMovement : undefined}
                                     />
                                 );
                             })}
@@ -690,13 +709,15 @@ export default function ProjectionPage() {
                 <div>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-normal text-[#67AEFA]">Seguros</h2>
-                        <button
-                            onClick={() => setIsInsuranceModalOpen(true)}
-                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors"
-                        >
-                            <Plus className="h-4 w-4" />
-                            Adicionar
-                        </button>
+                        {!isLegacy && (
+                            <button
+                                onClick={() => setIsInsuranceModalOpen(true)}
+                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Adicionar
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -704,8 +725,8 @@ export default function ProjectionPage() {
                             <InsuranceCard
                                 key={insurance.id}
                                 insurance={insurance}
-                                onEdit={handleEditInsurance}
-                                onDelete={handleDeleteInsurance}
+                                onEdit={!isLegacy ? handleEditInsurance : undefined}
+                                onDelete={!isLegacy ? handleDeleteInsurance : undefined}
                             />
                         ))}
                     </div>

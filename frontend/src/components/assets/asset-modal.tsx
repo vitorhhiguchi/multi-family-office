@@ -198,7 +198,8 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
                             </div>
 
                             {isFinanced && (
-                                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 bg-black/40 p-4 rounded-lg border border-[#333333]">
+                                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Detalhes do Financiamento</h4>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label>Valor Entrada</Label>
@@ -222,13 +223,13 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label>Taxa Juros (% a.m.)</Label>
+                                            <Label>Taxa Juros (% a.a.)</Label>
                                             <Input
                                                 type="number"
                                                 step="0.01"
                                                 value={interestRate}
                                                 onChange={(e) => setInterestRate(e.target.value)}
-                                                placeholder="0.8"
+                                                placeholder="10.5"
                                                 className="bg-black/20 border-[#333333]"
                                             />
                                         </div>
