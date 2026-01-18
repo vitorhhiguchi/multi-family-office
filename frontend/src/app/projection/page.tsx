@@ -122,8 +122,8 @@ export default function ProjectionPage() {
                 ...data,
                 simulationId: activeSimulationId,
                 category: 'OTHER', // Default or derived
-                endDate: data.endDate ? data.endDate.toISOString() : undefined,
-                startDate: data.startDate.toISOString(),
+                endDate: data.endDate ? data.endDate.toISOString().split('T')[0] : undefined,
+                startDate: data.startDate.toISOString().split('T')[0],
             });
             toast.success("Movimentação criada com sucesso!");
             setIsMovementModalOpen(false);
@@ -145,7 +145,7 @@ export default function ProjectionPage() {
                 type: 'LIFE', // Simple default for now, TODO: Add type to modal or infer
                 simulationId: activeSimulationId,
                 premium: data.premiumValue,
-                startDate: data.startDate.toISOString(),
+                startDate: data.startDate.toISOString().split('T')[0],
             });
             toast.success("Seguro criado com sucesso!");
             setIsInsuranceModalOpen(false);
@@ -167,7 +167,7 @@ export default function ProjectionPage() {
                     id: editingSimulation.id,
                     data: {
                         name: data.name,
-                        startDate: data.startDate.toISOString(),
+                        startDate: data.startDate.toISOString().split('T')[0],
                         realRate: data.inflationRate
                     }
                 });
@@ -176,7 +176,7 @@ export default function ProjectionPage() {
             } else {
                 await createSimulation.mutateAsync({
                     name: data.name,
-                    startDate: data.startDate.toISOString(),
+                    startDate: data.startDate.toISOString().split('T')[0],
                     realRate: data.inflationRate,
                     clientId: selectedClient.id
                 });
