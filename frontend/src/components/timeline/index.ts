@@ -1,2 +1,4 @@
 // Timeline components
-export { Timeline } from './timeline';
+export { Timeline, type TimelineEvent } from './timeline';
+
+

@@ -9,7 +9,8 @@ interface MovementCardProps {
 }
 
 export function MovementCard({ movement }: MovementCardProps) {
-    const isCredit = movement.value > 0;
+    // Use type field to determine income vs expense
+    const isIncome = movement.type === 'INCOME';
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('pt-BR', {
@@ -30,15 +31,24 @@ export function MovementCard({ movement }: MovementCardProps) {
         }).format(date);
     };
 
+    const frequencyLabel = {
+        'MONTHLY': 'Mensal',
+        'YEARLY': 'Anual',
+        'ONCE': 'Única',
+    }[movement.frequency] || movement.frequency;
+
     return (
-        <div className="p-5 rounded-2xl bg-[#1a1a1a] border border-[#67AEFA] relative flex justify-between items-start">
+        <div className={cn(
+            "p-5 rounded-2xl bg-[#1a1a1a] border relative flex justify-between items-start",
+            isIncome ? "border-[#48F7A1]" : "border-[#FF5151]"
+        )}>
             <div>
                 <h3 className="text-lg font-normal text-[#e5e5e5] mb-1">{movement.name}</h3>
                 <div className="text-sm text-muted-foreground mb-1">
                     {formatDate(movement.startDate)} {movement.endDate ? `- ${formatDate(movement.endDate)}` : ''}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                    Frequência: <span className="text-[#e5e5e5]">{movement.frequency === 'MONTHLY' ? 'Mensal' : movement.frequency === 'ANNUALLY' ? 'Anual' : 'Única'}</span>
+                    Frequência: <span className="text-[#e5e5e5]">{frequencyLabel}</span>
                 </div>
                 {movement.category && (
                     <div className="text-sm text-muted-foreground mt-1">
@@ -48,15 +58,15 @@ export function MovementCard({ movement }: MovementCardProps) {
             </div>
 
             <div className="flex items-center gap-2 self-end mt-auto">
-                {isCredit ? (
-                    <ArrowUp className="h-4 w-4 text-[#00C900]" />
+                {isIncome ? (
+                    <ArrowUp className="h-4 w-4 text-[#48F7A1]" />
                 ) : (
                     <ArrowDown className="h-4 w-4 text-[#FF5151]" />
                 )}
                 <span
                     className={cn(
                         "text-lg font-medium",
-                        isCredit ? "text-[#00C900]" : "text-[#FF5151]"
+                        isIncome ? "text-[#48F7A1]" : "text-[#FF5151]"
                     )}
                 >
                     {formatCurrency(movement.value)}
@@ -65,3 +75,4 @@ export function MovementCard({ movement }: MovementCardProps) {
         </div>
     );
 }
+

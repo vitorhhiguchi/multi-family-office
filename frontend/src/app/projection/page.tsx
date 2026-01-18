@@ -7,7 +7,7 @@ import { InsuranceModal, InsuranceFormData } from '@/components/dashboard/insura
 import { SimulationModal, SimulationFormData } from '@/components/dashboard/simulation-modal';
 import { ClientSelector, PatrimonyCard, MovementCard, InsuranceCard, SimulationSelector, AddSimulationModal } from '@/components/dashboard';
 import { ProjectionChart } from '@/components/charts';
-import { Timeline } from '@/components/timeline';
+import { Timeline, TimelineEvent } from '@/components/timeline';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -32,12 +32,34 @@ import {
     useProjections
 } from '@/hooks';
 
-// Mock summary since backend doesn't provide this yet
-const mockPatrimonySummaries = [
-    { year: 2026, label: 'Curto Prazo', age: 41, value: 3250100, percentChange: 12.3, isHighlight: false },
-    { year: 2030, label: 'Médio Prazo', age: 45, value: 4890500, percentChange: 45.8, isHighlight: false },
-    { year: 2045, label: 'Aposentadoria', age: 60, value: 12500000, percentChange: 150.2, isHighlight: true },
-];
+// Helper to create patrimony summaries from projection data
+const createPatrimonySummaries = (
+    projections: { year: number; age: number; patrimonyEnd: number }[],
+    targetYears: number[]
+) => {
+    if (!projections || projections.length === 0) return [];
+
+    const firstYear = projections[0];
+    const labels = ['Curto Prazo', 'Médio Prazo', 'Aposentadoria'];
+
+    return targetYears.map((targetYear, index) => {
+        const yearData = projections.find(p => p.year === targetYear);
+        if (!yearData) return null;
+
+        const percentChange = firstYear.patrimonyEnd > 0
+            ? ((yearData.patrimonyEnd - firstYear.patrimonyEnd) / firstYear.patrimonyEnd) * 100
+            : 0;
+
+        return {
+            year: yearData.year,
+            label: labels[index] || `Ano ${yearData.year}`,
+            age: yearData.age,
+            value: yearData.patrimonyEnd,
+            percentChange,
+            isHighlight: index === targetYears.length - 1,
+        };
+    }).filter(Boolean);
+};
 
 export default function ProjectionPage() {
     // Selection state
@@ -277,11 +299,27 @@ export default function ProjectionPage() {
             simulationId: p.simulationId,
             simulationName: p.simulationName,
             projections: p.projections,
-            isOriginal: sim?.isCurrentSituation, // Use 'Current Situation' as 'Original/Blue' visual style? Or explicit?
-            isRealized: p.simulationName === 'Realizado', // Name convetion?
+            isOriginal: sim?.isCurrentSituation,
+            isRealized: p.simulationName === 'Realizado',
             isDashed: !sim?.isCurrentSituation && p.simulationName !== 'Realizado',
         };
     });
+
+    // Create patrimony summaries from first projection
+    const firstProjection = projectionsData?.[0]?.projections || [];
+    const currentYear = new Date().getFullYear();
+    const patrimonySummaries = createPatrimonySummaries(
+        firstProjection,
+        [currentYear + 1, currentYear + 5, currentYear + 20]
+    );
+
+    // Map movements to timeline events
+    const timelineEvents: TimelineEvent[] = (movements || []).map(m => ({
+        year: new Date(m.startDate).getFullYear(),
+        label: m.name,
+        type: m.type === 'INCOME' ? 'income' as const : 'expense' as const,
+        value: m.value,
+    }));
 
     if (isLoadingClients) {
         return (
@@ -333,7 +371,7 @@ export default function ProjectionPage() {
 
                     {/* Right: Patrimony Cards */}
                     <div className="flex gap-4 overflow-x-auto pb-2">
-                        {mockPatrimonySummaries.map((summary) => (
+                        {patrimonySummaries.length > 0 ? patrimonySummaries.map((summary: any) => (
                             <PatrimonyCard
                                 key={summary.year}
                                 year={summary.year}
@@ -343,7 +381,9 @@ export default function ProjectionPage() {
                                 percentChange={summary.percentChange}
                                 isHighlight={summary.isHighlight}
                             />
-                        ))}
+                        )) : (
+                            <div className="text-muted-foreground text-sm">Crie uma simulação para ver projeções</div>
+                        )}
                     </div>
                 </div>
 
@@ -423,12 +463,11 @@ export default function ProjectionPage() {
                     </div>
                 </div>
 
-                {/* Timeline Section */}
                 <div className="bg-[#1a1a1a] border border-[#333333] rounded-2xl p-6 mb-6">
                     <Timeline
-                        events={[]} // TODO: Fetch timeline events (movements) and map them
-                        startYear={2025}
-                        endYear={2060}
+                        events={timelineEvents}
+                        startYear={currentYear}
+                        endYear={currentYear + 35}
                         clientBirthYear={clientBirthYear}
                         onAddClick={() => setIsMovementModalOpen(true)}
                     />
