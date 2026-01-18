@@ -1,0 +1,49 @@
+--- Debugging Projection ---
+prisma:query SELECT "public"."Simulation"."id", "public"."Simulation"."name", "public"."Simulation"."startDate", "public"."Simulation"."realRate", "public"."Simulation"."isCurrentSituation", "public"."Simulation"."version", "public"."Simulation"."clientId", "public"."Simulation"."createdAt", "public"."Simulation"."updatedAt" FROM "public"."Simulation" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."Asset"."id", "public"."Asset"."name", "public"."Asset"."type"::text, "public"."Asset"."simulationId", "public"."Asset"."createdAt", "public"."Asset"."updatedAt" FROM "public"."Asset" WHERE "public"."Asset"."simulationId" IN ($1,$2) OFFSET $3
+prisma:query SELECT "public"."AssetRecord"."id", "public"."AssetRecord"."assetId", "public"."AssetRecord"."value", "public"."AssetRecord"."date", "public"."AssetRecord"."createdAt" FROM "public"."AssetRecord" WHERE "public"."AssetRecord"."assetId" IN ($1,$2,$3,$4) OFFSET $5
+Found 2 simulations.
+
+Checking Simulation: CenarioA (ID: 509)
+Start Date: 2026-01-18T00:00:00.000Z
+Assets: 4
+  - Asset: CDB Banco C6 (FINANCIAL)
+    Records: 1
+      * 2026-01-17T00:00:00.000Z : 1000
+  - Asset: Apartamento na Gleba (REAL_ESTATE)
+    Records: 1
+      * 2026-01-17T00:00:00.000Z : 1200000
+  - Asset: CDB Banco C6 (FINANCIAL)
+    Records: 1
+      * 2026-01-01T00:00:00.000Z : 100000
+  - Asset: CBD Banco C6 (FINANCIAL)
+    Records: 1
+      * 2025-12-18T00:00:00.000Z : 10000
+Running Engine...
+prisma:query SELECT "public"."Simulation"."id", "public"."Simulation"."name", "public"."Simulation"."startDate", "public"."Simulation"."realRate", "public"."Simulation"."isCurrentSituation", "public"."Simulation"."version", "public"."Simulation"."clientId", "public"."Simulation"."createdAt", "public"."Simulation"."updatedAt" FROM "public"."Simulation" WHERE ("public"."Simulation"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Asset"."id", "public"."Asset"."name", "public"."Asset"."type"::text, "public"."Asset"."simulationId", "public"."Asset"."createdAt", "public"."Asset"."updatedAt" FROM "public"."Asset" WHERE "public"."Asset"."simulationId" IN ($1) OFFSET $2
+prisma:query SELECT "public"."AssetRecord"."id", "public"."AssetRecord"."assetId", "public"."AssetRecord"."value", "public"."AssetRecord"."date", "public"."AssetRecord"."createdAt" FROM "public"."AssetRecord" WHERE "public"."AssetRecord"."assetId" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."Financing"."id", "public"."Financing"."assetId", "public"."Financing"."startDate", "public"."Financing"."installments", "public"."Financing"."interestRate", "public"."Financing"."downPayment", "public"."Financing"."createdAt", "public"."Financing"."updatedAt" FROM "public"."Financing" WHERE "public"."Financing"."assetId" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."Movement"."id", "public"."Movement"."name", "public"."Movement"."type"::text, "public"."Movement"."category"::text, "public"."Movement"."value", "public"."Movement"."frequency"::text, "public"."Movement"."startDate", "public"."Movement"."endDate", "public"."Movement"."simulationId", "public"."Movement"."createdAt", "public"."Movement"."updatedAt" FROM "public"."Movement" WHERE "public"."Movement"."simulationId" IN ($1) OFFSET $2
+prisma:query SELECT "public"."Insurance"."id", "public"."Insurance"."name", "public"."Insurance"."type"::text, "public"."Insurance"."startDate", "public"."Insurance"."durationMonths", "public"."Insurance"."premium", "public"."Insurance"."insuredValue", "public"."Insurance"."simulationId", "public"."Insurance"."createdAt", "public"."Insurance"."updatedAt" FROM "public"."Insurance" WHERE "public"."Insurance"."simulationId" IN ($1) OFFSET $2
+[Engine] Running Projection. Start: 2026-01-18T00:00:00.000Z
+[Engine] Asset CDB Banco C6 (FINANCIAL): Value at 2026-01-18 = 1000
+[Engine] Asset Records: [ '2026-01-17T00:00:00.000Z - 1000' ]
+[Engine] Asset Apartamento na Gleba (REAL_ESTATE): Value at 2026-01-18 = 1200000
+[Engine] Asset Records: [ '2026-01-17T00:00:00.000Z - 1200000' ]
+[Engine] Asset CDB Banco C6 (FINANCIAL): Value at 2026-01-18 = 100000
+[Engine] Asset Records: [ '2026-01-01T00:00:00.000Z - 100000' ]
+[Engine] Asset CBD Banco C6 (FINANCIAL): Value at 2026-01-18 = 10000
+[Engine] Asset Records: [ '2025-12-18T00:00:00.000Z - 10000' ]
+[Engine] Initial State -> Financial: 111000, RealEstate: 1200000
+Projection Result Year 0 (Start): {
+  year: 2026,
+  financialAssets: 0,
+  realEstateAssets: 1248000,
+  totalPatrimony: 1248000,
+  totalPatrimonyWithoutInsurance: 1248000,
+  totalIncome: 60000,
+  totalExpenses: 274629.2,
+  netResult: -214629.2,
+  insuranceValue: 0
+}

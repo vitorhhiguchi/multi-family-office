@@ -92,21 +92,14 @@ export type LifeStatus = 'ALIVE' | 'DEAD' | 'INVALID';
 
 export interface YearProjection {
     year: number;
-    age: number;
-    status: LifeStatus;
-    patrimonyStart: number;
+    financialAssets: number;
+    realEstateAssets: number;
+    totalPatrimony: number;
+    totalPatrimonyWithoutInsurance: number;
     totalIncome: number;
     totalExpenses: number;
     netResult: number;
-    growth: number;
-    patrimonyEnd: number;
-    financingPayments: number;
-    insurancePremiums: number;
     insuranceValue: number;
-    // Optional detailed breakdown
-    financialAssets?: number;
-    realEstateAssets?: number;
-    totalPatrimonyWithoutInsurance?: number;
 }
 
 export interface ProjectionResult {

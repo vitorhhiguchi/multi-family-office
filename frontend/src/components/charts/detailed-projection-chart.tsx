@@ -89,11 +89,10 @@ export function DetailedProjectionChart({
     // Transform data for the chart
     const chartData = mainProjection.projections.map(p => ({
         year: p.year,
-        age: p.age,
         'Ativos Financeiros': p.financialAssets || 0,
         'Ativos Imobilizados': p.realEstateAssets || 0,
-        'Patrimônio Total': p.patrimonyEnd,
-        'Total sem Seguros': p.totalPatrimonyWithoutInsurance || p.patrimonyEnd,
+        'Patrimônio Total': p.totalPatrimony,
+        'Total sem Seguros': p.totalPatrimonyWithoutInsurance || p.totalPatrimony,
     }));
 
     return (

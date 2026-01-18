@@ -2,10 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { simulationsService } from '@/services/simulations';
 import type { CreateSimulationInput, Simulation } from '@/types';
 
-export const useSimulations = (clientId?: number) => {
+export const useSimulations = (options?: { clientId?: number; includeAllVersions?: boolean } | number) => {
+    // Handle both number (legacy) and options object
+    const clientId = typeof options === 'number' ? options : options?.clientId;
+    const includeAllVersions = typeof options === 'object' ? options?.includeAllVersions : false;
+
     return useQuery({
-        queryKey: ['simulations', clientId],
-        queryFn: () => simulationsService.getAll(clientId),
+        queryKey: ['simulations', clientId, includeAllVersions],
+        queryFn: () => simulationsService.getAll(clientId, includeAllVersions),
         enabled: !!clientId,
     });
 };

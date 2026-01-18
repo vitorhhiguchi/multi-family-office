@@ -1,65 +1,38 @@
-import type {
+
+import {
+    Simulation,
     Asset,
     AssetRecord,
     Movement,
     Insurance,
-    Simulation,
     Financing,
     MovementType,
     Frequency,
     IncomeCategory,
-    AssetType
-} from '@prisma/client';
-import type { LifeStatus } from '../schemas/projection.schema.js';
+    AssetType,
+    LifeStatus,
+    YearProjection
+} from '@/types';
 
-export interface ProjectionYear {
-    year: number;
-    financialAssets: number;
-    realEstateAssets: number;
-    totalPatrimony: number;
-    totalPatrimonyWithoutInsurance: number;
-    totalIncome: number;
-    totalExpenses: number;
-    netResult: number;
-    insuranceValue: number;
-}
-
-export interface ProjectionResult {
-    simulationId: number;
-    simulationName: string;
-    status: LifeStatus;
-    startYear: number;
-    endYear: number;
-    realRate: number;
-    projections: ProjectionYear[];
-}
-
-interface AssetWithRecords extends Asset {
-    records: AssetRecord[];
-    financing: Financing | null;
-}
-
-interface SimulationData extends Simulation {
-    assets: AssetWithRecords[];
-    movements: Movement[];
-    insurances: Insurance[];
+export interface ProjectionStats {
+    finalPatrimony: number;
+    retirementAge: number | null;
 }
 
 export class ProjectionEngine {
-    private simulation: SimulationData;
+    private simulation: Simulation;
     private status: LifeStatus;
     private endYear: number;
 
-    constructor(simulation: SimulationData, status: LifeStatus, endYear: number = 2060) {
+    constructor(simulation: Simulation, status: LifeStatus = 'ALIVE', endYear: number = 2060) {
         this.simulation = simulation;
         this.status = status;
         this.endYear = endYear;
     }
 
-    /**
-     * Get the most recent asset record before a given date
-     */
-    private getAssetValueAtDate(asset: AssetWithRecords, date: Date): number {
+    private getAssetValueAtDate(asset: Asset, date: Date): number {
+        if (!asset.records || asset.records.length === 0) return 0;
+
         const relevantRecords = asset.records
             .filter(r => new Date(r.date) <= date)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -67,17 +40,12 @@ export class ProjectionEngine {
         return relevantRecords.length > 0 ? relevantRecords[0].value : 0;
     }
 
-    /**
-     * Calculate total asset value by type at a given date
-     */
     private calculateAssetsByType(date: Date): { financial: number; realEstate: number } {
         let financial = 0;
         let realEstate = 0;
 
-        for (const asset of this.simulation.assets) {
+        for (const asset of (this.simulation.assets || [])) {
             const value = this.getAssetValueAtDate(asset, date);
-            console.log(`[Engine] Asset ${asset.name} (${asset.type}): Value at ${date.toISOString().split('T')[0]} = ${value}`);
-            console.log(`[Engine] Asset Records:`, asset.records.map(r => `${r.date.toISOString()} - ${r.value}`));
 
             if (asset.type === 'FINANCIAL') {
                 financial += value;
@@ -89,53 +57,35 @@ export class ProjectionEngine {
         return { financial, realEstate };
     }
 
-    /**
-     * Calculate movement value for a specific year based on frequency
-     */
     private calculateMovementForYear(movement: Movement, year: number): number {
         const startYear = new Date(movement.startDate).getFullYear();
         const endYear = movement.endDate
             ? new Date(movement.endDate).getFullYear()
             : this.endYear;
 
-        // Check if movement is active in this year
         if (year < startYear || year > endYear) {
             return 0;
         }
 
-        // Apply income category rules for INVALID status
-        if (this.status === 'INVALID' && movement.type === 'INCOME') {
-            // Only WORK income stops for INVALID status
-            if (movement.category === 'WORK') {
-                return 0;
-            }
+        if (this.status === 'INVALID' && movement.type === 'INCOME' && movement.category === 'WORK') {
+            return 0;
         }
 
-        // Apply DEAD status rules
         if (this.status === 'DEAD' && movement.type === 'INCOME') {
-            // No income for DEAD status
             return 0;
         }
 
         let value = movement.value;
 
-        // Apply frequency multiplier
         switch (movement.frequency) {
             case 'MONTHLY':
                 value *= 12;
                 break;
-            case 'YEARLY':
-                // Value is already yearly
-                break;
             case 'ONCE':
-                // Only applies in the start year
-                if (year !== startYear) {
-                    return 0;
-                }
+                if (year !== startYear) return 0;
                 break;
         }
 
-        // Apply DEAD status rule: expenses are divided by 2
         if (this.status === 'DEAD' && movement.type === 'EXPENSE') {
             value /= 2;
         }
@@ -143,31 +93,22 @@ export class ProjectionEngine {
         return value;
     }
 
-    /**
-     * Calculate total income for a year
-     */
     private calculateYearlyIncome(year: number): number {
-        return this.simulation.movements
+        return (this.simulation.movements || [])
             .filter(m => m.type === 'INCOME')
             .reduce((total, m) => total + this.calculateMovementForYear(m, year), 0);
     }
 
-    /**
-     * Calculate total expenses for a year
-     */
     private calculateYearlyExpenses(year: number): number {
-        return this.simulation.movements
+        return (this.simulation.movements || [])
             .filter(m => m.type === 'EXPENSE')
             .reduce((total, m) => total + this.calculateMovementForYear(m, year), 0);
     }
 
-    /**
-     * Calculate insurance premiums for a year
-     */
     private calculateYearlyInsurancePremiums(year: number): number {
         let totalPremiums = 0;
 
-        for (const insurance of this.simulation.insurances) {
+        for (const insurance of (this.simulation.insurances || [])) {
             const startDate = new Date(insurance.startDate);
             const endDate = new Date(insurance.startDate);
             endDate.setMonth(endDate.getMonth() + insurance.durationMonths);
@@ -176,7 +117,6 @@ export class ProjectionEngine {
             const insuranceEndYear = endDate.getFullYear();
 
             if (year >= insuranceStartYear && year <= insuranceEndYear) {
-                // Calculate how many months of premium in this year
                 let months = 12;
 
                 if (year === insuranceStartYear) {
@@ -193,13 +133,10 @@ export class ProjectionEngine {
         return totalPremiums;
     }
 
-    /**
-     * Calculate total active insurance value for a year
-     */
     private calculateActiveInsuranceValue(year: number): number {
         let totalInsurance = 0;
 
-        for (const insurance of this.simulation.insurances) {
+        for (const insurance of (this.simulation.insurances || [])) {
             const startDate = new Date(insurance.startDate);
             const endDate = new Date(insurance.startDate);
             endDate.setMonth(endDate.getMonth() + insurance.durationMonths);
@@ -207,7 +144,6 @@ export class ProjectionEngine {
             const yearStart = new Date(year, 0, 1);
             const yearEnd = new Date(year, 11, 31);
 
-            // Check if insurance overlaps with this year
             if (startDate <= yearEnd && endDate >= yearStart) {
                 totalInsurance += insurance.insuredValue;
             }
@@ -216,13 +152,10 @@ export class ProjectionEngine {
         return totalInsurance;
     }
 
-    /**
-     * Calculate financing payments for a year
-     */
     private calculateFinancingPayments(year: number): number {
         let totalPayments = 0;
 
-        for (const asset of this.simulation.assets) {
+        for (const asset of (this.simulation.assets || [])) {
             if (asset.financing) {
                 const startDate = new Date(asset.financing.startDate);
                 const startYear = startDate.getFullYear();
@@ -232,11 +165,16 @@ export class ProjectionEngine {
                     // Calculate monthly payment using PMT formula
                     const principal = this.getAssetValueAtDate(asset, startDate) - asset.financing.downPayment;
                     const monthlyRate = asset.financing.interestRate / 12;
-                    const monthlyPayment = principal *
-                        (monthlyRate * Math.pow(1 + monthlyRate, asset.financing.installments)) /
-                        (Math.pow(1 + monthlyRate, asset.financing.installments) - 1);
+                    // Fix: Handle zero interest rate to avoid division by zero
+                    let monthlyPayment = 0;
+                    if (monthlyRate === 0) {
+                        monthlyPayment = principal / asset.financing.installments;
+                    } else {
+                        monthlyPayment = principal *
+                            (monthlyRate * Math.pow(1 + monthlyRate, asset.financing.installments)) /
+                            (Math.pow(1 + monthlyRate, asset.financing.installments) - 1);
+                    }
 
-                    // How many payments in this year
                     let paymentsInYear = 12;
                     if (year === startYear) {
                         paymentsInYear = 12 - startDate.getMonth();
@@ -256,76 +194,69 @@ export class ProjectionEngine {
         return totalPayments;
     }
 
-    /**
-     * Run the projection engine and generate year-by-year projections
-     */
-    run(): ProjectionResult {
+    public calculateStats(): ProjectionStats {
         const startYear = new Date(this.simulation.startDate).getFullYear();
         const startDate = new Date(this.simulation.startDate);
-        const projections: ProjectionYear[] = [];
 
-        // Get initial asset values at simulation start date
-        console.log(`[Engine] Running Projection. Start: ${startDate.toISOString()}`);
         let { financial: financialAssets, realEstate: realEstateAssets } =
             this.calculateAssetsByType(startDate);
 
-        console.log(`[Engine] Initial State -> Financial: ${financialAssets}, RealEstate: ${realEstateAssets}`);
-
+        // Run projection until endYear
         for (let year = startYear; year <= this.endYear; year++) {
-            const yearDate = new Date(year, 11, 31); // End of year
-
-            // Calculate income and expenses for this year
             const totalIncome = this.calculateYearlyIncome(year);
             const totalExpenses = this.calculateYearlyExpenses(year);
             const insurancePremiums = this.calculateYearlyInsurancePremiums(year);
             const financingPayments = this.calculateFinancingPayments(year);
-
-            // Net result before applying to patrimony
             const netResult = totalIncome - totalExpenses - insurancePremiums - financingPayments;
 
-            // Apply compound interest rate to patrimony
-            // Formula: (Patrimony + NetResult) * (1 + rate)
-            const totalPatrimonyBeforeGrowth = financialAssets + realEstateAssets + netResult;
             const growthFactor = 1 + this.simulation.realRate;
-
-            // Apply growth primarily to financial assets
             financialAssets = (financialAssets + netResult) * growthFactor;
-
-            // Real estate appreciates at the same rate
             realEstateAssets = realEstateAssets * growthFactor;
-
-            // Ensure no negative values (can't have negative patrimony)
             financialAssets = Math.max(0, financialAssets);
+        }
 
-            const totalPatrimony = financialAssets + realEstateAssets;
+        const totalPatrimony = financialAssets + realEstateAssets;
 
-            // Calculate insurance value active in this year
-            const insuranceValue = this.calculateActiveInsuranceValue(year);
+        // Calculate Retirement Age
+        // Definition: Age where the last WORK income ends
+        let maxWorkEndDate: Date | null = null;
+        let hasWorkIncome = false;
 
-            // Total patrimony without insurance
-            const totalPatrimonyWithoutInsurance = totalPatrimony;
+        const workMovements = (this.simulation.movements || []).filter(m =>
+            m.type === 'INCOME' && m.category === 'WORK'
+        );
 
-            projections.push({
-                year,
-                financialAssets: Math.round(financialAssets * 100) / 100,
-                realEstateAssets: Math.round(realEstateAssets * 100) / 100,
-                totalPatrimony: Math.round((totalPatrimony + insuranceValue) * 100) / 100,
-                totalPatrimonyWithoutInsurance: Math.round(totalPatrimonyWithoutInsurance * 100) / 100,
-                totalIncome: Math.round(totalIncome * 100) / 100,
-                totalExpenses: Math.round((totalExpenses + insurancePremiums + financingPayments) * 100) / 100,
-                netResult: Math.round(netResult * 100) / 100,
-                insuranceValue: Math.round(insuranceValue * 100) / 100,
-            });
+        if (workMovements.length > 0) {
+            hasWorkIncome = true;
+            for (const m of workMovements) {
+                if (!m.endDate) {
+                    // If any work income has no end date, retirement is essentially "never" or at endYear
+                    maxWorkEndDate = new Date(this.endYear, 11, 31);
+                    break;
+                }
+                const endDate = new Date(m.endDate);
+                if (!maxWorkEndDate || endDate > maxWorkEndDate) {
+                    maxWorkEndDate = endDate;
+                }
+            }
+        }
+
+        let retirementAge: number | null = null;
+        if (maxWorkEndDate && this.simulation.client) {
+            const birthDate = new Date(this.simulation.client.birthDate);
+            const retirementYear = maxWorkEndDate.getFullYear();
+            const birthYear = birthDate.getFullYear();
+            retirementAge = retirementYear - birthYear;
         }
 
         return {
-            simulationId: this.simulation.id,
-            simulationName: this.simulation.name,
-            status: this.status,
-            startYear,
-            endYear: this.endYear,
-            realRate: this.simulation.realRate,
-            projections,
+            finalPatrimony: totalPatrimony,
+            retirementAge: retirementAge
         };
     }
+}
+
+export const getSimulationStats = (simulation: Simulation): ProjectionStats => {
+    const engine = new ProjectionEngine(simulation);
+    return engine.calculateStats();
 }

@@ -39,7 +39,7 @@ import {
 // Helper to create patrimony summaries from projection data
 // Uses actual years from projection data rather than fixed offsets
 const createPatrimonySummaries = (
-    projections: { year: number; age: number; patrimonyEnd: number }[],
+    projections: { year: number; totalPatrimony: number }[],
     clientBirthYear: number
 ) => {
     if (!projections || projections.length === 0) return [];
@@ -49,7 +49,7 @@ const createPatrimonySummaries = (
 
     // Calculate max patrimony for progress bars (100% = max value in projection)
     // We consider the max value achieved across the entire projection period
-    const maxPatrimony = Math.max(...projections.map(p => p.patrimonyEnd));
+    const maxPatrimony = Math.max(...projections.map(p => p.totalPatrimony));
 
     // Define target milestones: Hoje, Médio Prazo (10 anos), Aposentadoria (65 anos)
     const clientAge = currentYear - clientBirthYear;
@@ -70,20 +70,20 @@ const createPatrimonySummaries = (
 
         if (!yearData) return null;
 
-        const percentChange = firstProjection.patrimonyEnd > 0
-            ? ((yearData.patrimonyEnd - firstProjection.patrimonyEnd) / firstProjection.patrimonyEnd) * 100
+        const percentChange = firstProjection.totalPatrimony > 0
+            ? ((yearData.totalPatrimony - firstProjection.totalPatrimony) / firstProjection.totalPatrimony) * 100
             : 0;
 
         // Calculate progress relative to max patrimony
         const progress = maxPatrimony > 0
-            ? Math.min((yearData.patrimonyEnd / maxPatrimony) * 100, 100)
+            ? Math.min((yearData.totalPatrimony / maxPatrimony) * 100, 100)
             : 0;
 
         return {
             year: yearData.year,
             label: milestone.label,
-            age: yearData.age,
-            value: yearData.patrimonyEnd,
+            age: yearData.year - clientBirthYear, // Recalculate age since backend doesn't send it? or use clientBirthYear
+            value: yearData.totalPatrimony,
             percentChange: milestone.isFirst ? undefined : percentChange,
             isHighlight: milestone.isHighlight,
             isFirst: milestone.isFirst,
@@ -423,10 +423,10 @@ export default function ProjectionPage() {
         projections: p.projections
     }));
 
-    // Create patrimony summaries from first projection
-    const firstProjection = projectionsData?.[0]?.projections || [];
+    // Create patrimony summaries from active projection
+    const activeProjection = projectionsData?.find(p => p.simulationId === activeSimulationId);
     const patrimonySummaries = createPatrimonySummaries(
-        firstProjection,
+        activeProjection?.projections || [],
         clientBirthYear
     );
 
@@ -483,7 +483,7 @@ export default function ProjectionPage() {
                     </div>
 
                     {/* Right: Patrimony Cards */}
-                    <div className="flex gap-4 overflow-x-auto pb-2">
+                    <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         {patrimonySummaries.length > 0 ? patrimonySummaries.map((summary: any) => (
                             <ProjectionStat
                                 key={summary.year}

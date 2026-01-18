@@ -76,7 +76,6 @@ export function ProjectionChart({ projections }: ProjectionChartProps) {
     const chartData = projections[0]?.projections.map((p, index) => {
         const dataPoint: Record<string, any> = {
             year: p.year,
-            age: p.age,
         };
 
         projections.forEach((sim) => {
@@ -84,7 +83,7 @@ export function ProjectionChart({ projections }: ProjectionChartProps) {
             const projection = sim.projections.find(proj => proj.year === p.year);
             if (projection) {
                 // Use ID-based key to avoid issues with special characters in names
-                dataPoint[`sim_${sim.simulationId}`] = projection.patrimonyEnd;
+                dataPoint[`sim_${sim.simulationId}`] = projection.totalPatrimony;
             }
         });
 

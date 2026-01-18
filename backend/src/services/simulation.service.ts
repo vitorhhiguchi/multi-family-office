@@ -39,6 +39,18 @@ export class SimulationService {
                 orderBy: [{ name: 'asc' }, { version: 'desc' }],
                 include: {
                     client: true,
+                    assets: {
+                        include: {
+                            records: {
+                                orderBy: { date: 'desc' },
+                            },
+                            financing: true,
+                        },
+                    },
+                    movements: {
+                        orderBy: { startDate: 'asc' },
+                    },
+                    insurances: true,
                 },
             });
         }
@@ -49,6 +61,18 @@ export class SimulationService {
             orderBy: [{ name: 'asc' }, { version: 'desc' }],
             include: {
                 client: true,
+                assets: {
+                    include: {
+                        records: {
+                            orderBy: { date: 'desc' },
+                        },
+                        financing: true,
+                    },
+                },
+                movements: {
+                    orderBy: { startDate: 'asc' },
+                },
+                insurances: true,
             },
         });
 
