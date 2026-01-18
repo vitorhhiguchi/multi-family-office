@@ -157,6 +157,7 @@ export default function ProjectionPage() {
     const [editingInsurance, setEditingInsurance] = useState<Insurance | null>(null);
     const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
     const [duplicatingFromId, setDuplicatingFromId] = useState<number | null>(null);
+    const [duplicatingFromId, setDuplicatingFromId] = useState<number | null>(null);
 
     // Mutation Hooks
     const createSimulation = useCreateSimulation();
@@ -419,17 +420,35 @@ export default function ProjectionPage() {
 
     // Prepare chart data
     // Map projectionsData (ProjectionResult[]) to the format expected by ProjectionChart
-    const chartProjections = (projectionsData || []).map(p => {
+    const baseChartProjections = (projectionsData || []).map(p => {
         const sim = simulations?.find(s => s.id === p.simulationId);
         return {
             simulationId: p.simulationId,
             simulationName: p.simulationName,
             projections: p.projections,
             isOriginal: sim?.isCurrentSituation,
-            isRealized: p.simulationName === 'Realizado',
-            isDashed: !sim?.isCurrentSituation && p.simulationName !== 'Realizado',
+            isDashed: !sim?.isCurrentSituation,
+            isRealized: false
         };
     });
+
+    const chartProjections = [...baseChartProjections];
+
+    // Add "Realizado" line based on the first available projection (usually the active or primary context)
+    if (projectionsData && projectionsData.length > 0) {
+        const baseProj = projectionsData[0];
+        chartProjections.push({
+            simulationId: 99999, // Dummy ID
+            simulationName: 'Realizado (Aporte+Rent.)',
+            projections: baseProj.projections.map(p => ({
+                ...p,
+                totalPatrimony: p.totalPatrimonyWithoutInsurance || 0
+            })),
+            isOriginal: false,
+            isDashed: true, // Make it dashed/dotted as per design request/impl in chart
+            isRealized: true
+        });
+    }
 
     // Detailed chart data needs a different structure (just raw projections)
     const detailedProjections = (projectionsData || []).map(p => ({
@@ -602,7 +621,7 @@ export default function ProjectionPage() {
                     )}
 
                     {viewMode === 'detailed' && (
-                        <DetailedProjectionChart projections={detailedProjections} />
+                        <DetailedProjectionChart projections={detailedProjections} showWithoutInsurance={true} />
                     )}
 
                     {viewMode === 'table' && (

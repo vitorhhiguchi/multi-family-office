@@ -145,23 +145,33 @@ export function SimulationSelector({
                     key={sim.id}
                     simulation={sim}
                     isSelected={selectedIds.includes(sim.id)}
-                    variant={sim.isCurrentSituation ? 'current' : 'original'} // Fix logic: original is default, current is green
+                    variant={sim.isCurrentSituation ? 'current' : 'original'}
                     onClick={() => onToggle(sim.id)}
                     onEdit={onEditSimulation ? () => onEditSimulation(sim) : undefined}
                     onDuplicate={onDuplicateSimulation ? () => onDuplicateSimulation(sim) : undefined}
                     onDelete={onDeleteSimulation ? () => onDeleteSimulation(sim) : undefined}
                 />
             ))}
-            <button
-                className="flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors"
-                style={{ borderColor: ANKA_COLORS.yellow, color: ANKA_COLORS.yellow }}
+            <div
+                className="flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors cursor-default select-none"
+                style={{
+                    borderColor: ANKA_COLORS.yellow,
+                    color: ANKA_COLORS.yellow,
+                }}
             >
-                Realizado
-            </button>
+                <div
+                    className="w-3 h-3 rounded-full border-2"
+                    style={{
+                        borderColor: ANKA_COLORS.yellow,
+                        backgroundColor: ANKA_COLORS.yellow,
+                    }}
+                />
+                Realizado (Aporte+Rent.)
+            </div>
             {onAddClick && (
                 <button
                     onClick={onAddClick}
-                    className="px-4 py-2 text-sm transition-colors"
+                    className="px-4 py-2 text-sm transition-colors hover:text-white"
                     style={{ color: ANKA_COLORS.gray }}
                 >
                     + Adicionar Simulação
