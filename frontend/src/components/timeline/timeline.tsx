@@ -2,35 +2,49 @@
 
 import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
-import { TimelineEvent } from '@/types';
+
+export interface TimelineEvent {
+    year: number;
+    label?: string;
+    type: 'income' | 'expense';
+    value?: number;
+}
 
 interface TimelineProps {
-    incomeEvents: TimelineEvent[];
-    expenseEvents: TimelineEvent[];
-    startYear: number;
-    endYear: number;
-    clientBirthYear: number;
-    onAddClick: () => void;
+    startYear?: number;
+    endYear?: number;
+    clientBirthYear?: number;
+    events?: TimelineEvent[];
+    className?: string;
+    onAddClick?: () => void;
 }
 
 export function Timeline({
-    incomeEvents,
-    expenseEvents,
-    startYear,
-    endYear,
-    clientBirthYear,
+    startYear = 2025,
+    endYear = 2060,
+    clientBirthYear = 1980,
+    events = [],
+    className,
     onAddClick,
 }: TimelineProps) {
-    // Generate year markers (every 5 years)
     const years: number[] = [];
-    for (let y = startYear; y <= endYear; y += 5) {
-        years.push(y);
+    for (let year = startYear; year <= endYear; year++) {
+        years.push(year);
     }
 
-    const totalYears = endYear - startYear;
+    const getAge = (year: number) => year - clientBirthYear;
 
-    const getPosition = (year: number) => {
-        return ((year - startYear) / totalYears) * 100;
+    const getIncomeEvent = (year: number) =>
+        events.find((e) => e.year === year && e.type === 'income');
+
+    const getExpenseEvent = (year: number) =>
+        events.find((e) => e.year === year && e.type === 'expense');
+
+    const COLORS = {
+        green: '#00C900',
+        red: '#FF5151',
+        blue: '#67AEFA',
+        greyLine: '#334155',
     };
 
     const formatCurrency = (val: number) => {
@@ -38,148 +52,145 @@ export function Timeline({
             style: 'currency',
             currency: 'BRL',
             maximumFractionDigits: 0,
-        }).format(val);
+        }).format(Math.abs(val));
     };
 
     return (
-        <div className="w-full">
-            <div className="flex items-center justify-between mb-8">
-                <h3 className="text-xl font-medium" style={{ color: '#67AEFA' }}>Timeline</h3>
+        <div className={cn('w-full py-6 select-none bg-[#1a1a1a]', className)}>
+
+            {/* Header */}
+            <div className="mb-8 flex items-center justify-between px-2">
+                <h3
+                    className="text-2xl font-normal font-serif"
+                    style={{ color: COLORS.blue }}
+                >
+                    Timeline
+                </h3>
                 <button
                     onClick={onAddClick}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors"
+                    className="flex items-center gap-2 rounded-full border border-slate-700 bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-slate-300 hover:bg-[#2a2a2a] hover:text-white transition-colors cursor-pointer"
                 >
-                    <Plus className="h-4 w-4" />
-                    Adicionar
+                    <Plus size={14} /> Adicionar
                 </button>
             </div>
 
-            <div className="relative pt-12 pb-8 px-4">
-                {/* Main Axis Line */}
-                <div className="absolute top-1/2 left-0 w-full h-px bg-[#333333] -translate-y-1/2" />
+            {/* Container com Scroll Horizontal */}
+            <div className="relative w-full overflow-x-auto pb-4 no-scrollbar">
 
-                {/* Year/Age Markers - Centered Ruler */}
-                <div className="relative h-12 flex items-center">
+                {/* Grid de layout da timeline */}
+                <div
+                    className="grid w-full"
+                    style={{
+                        // Coluna 1: Labels fixos (80px)
+                        // Resto: minmax(40px, 1fr) -> Estica se der (1fr), mas garante mínimo de 40px
+                        gridTemplateColumns: `80px repeat(${years.length}, minmax(40px, 1fr))`
+                    }}
+                >
+
+                    {/* === FAIXA 1: SALÁRIO / RENDA === */}
+
+                    {/* Rótulo Esquerdo */}
+                    <div className="flex items-end pb-3 pr-4 sticky left-0 bg-[#1a1a1a] z-10">
+                        <div className="flex items-center gap-2">
+                            <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS.green }} />
+                            <span className="text-sm font-medium" style={{ color: COLORS.green }}>Salário</span>
+                        </div>
+                    </div>
+
+                    {/* Linha do Tempo de Renda */}
                     {years.map((year) => {
-                        const age = year - clientBirthYear;
-                        const left = `${getPosition(year)}%`;
-
+                        const event = getIncomeEvent(year);
                         return (
-                            <div
-                                key={year}
-                                className="absolute transform -translate-x-1/2 flex flex-col items-center gap-1"
-                                style={{ left }}
-                            >
-                                {/* Tick mark */}
-                                <div className="h-3 w-px bg-[#333333]" />
+                            <div key={`inc-${year}`} className="relative flex flex-col items-center justify-end h-24">
+                                <div className="absolute bottom-[11px] left-0 w-full border-b" style={{ borderColor: COLORS.greyLine }} />
+                                <div className="absolute bottom-1 h-3 w-px bg-slate-700" />
 
-                                <span className="text-sm font-medium text-foreground">{year}</span>
-                                <span className="text-xs text-muted-foreground">{age}</span>
-                            </div>
-                        );
-                    })}
-
-                    {/* Minor ticks (every 1 year) */}
-                    {Array.from({ length: totalYears + 1 }).map((_, i) => {
-                        const year = startYear + i;
-                        if (year % 5 === 0) return null; // Skip major ticks
-                        return (
-                            <div
-                                key={year}
-                                className="absolute h-1.5 w-px bg-[#262626] top-1/2 -translate-y-1/2 transform -translate-x-1/2"
-                                style={{ left: `${getPosition(year)}%` }}
-                            />
-                        );
-                    })}
-                </div>
-
-                {/* Income Track (Green) - Above */}
-                <div className="absolute top-0 left-0 w-full">
-                    {incomeEvents.map((event) => {
-                        const startPos = getPosition(event.startYear);
-                        const endPos = getPosition(event.endYear || endYear);
-                        const width = endPos - startPos;
-
-                        return (
-                            <div
-                                key={event.id}
-                                className="absolute top-0"
-                                style={{ left: `${startPos}%`, width: `${width}%` }}
-                            >
-                                {/* Line */}
-                                <div
-                                    className="h-0.5 w-full absolute top-5"
-                                    style={{ backgroundColor: '#00C900' }}
-                                />
-
-                                {/* Start Dot */}
-                                <div
-                                    className="absolute top-3 w-4 h-4 rounded-full border-2 border-background z-10"
-                                    style={{ backgroundColor: '#00C900' }}
-                                />
-
-                                {/* End Dot (if specific end year) */}
-                                {event.endYear && (
-                                    <div
-                                        className="absolute top-3 right-0 w-4 h-4 rounded-full border-2 border-background z-10 translate-x-1/2"
-                                        style={{ backgroundColor: '#00C900' }}
-                                    />
+                                {event && (
+                                    <div className="absolute bottom-[7px] left-1/2 -translate-x-1/2 flex flex-col items-center z-20 w-max">
+                                        {event.label && (
+                                            <span
+                                                className="mb-2 text-center text-xs font-semibold leading-tight whitespace-nowrap"
+                                                style={{ color: COLORS.green }}
+                                            >
+                                                {event.label.split('\n').map((line, idx) => (
+                                                    <span key={idx} className="block">{line}</span>
+                                                ))}
+                                            </span>
+                                        )}
+                                        <div
+                                            className="h-3 w-3 rounded-full shadow-[0_0_8px_rgba(0,201,0,0.5)] ring-4 ring-[#1a1a1a]"
+                                            style={{ backgroundColor: COLORS.green }}
+                                        />
+                                    </div>
                                 )}
-
-                                {/* Label */}
-                                <span
-                                    className="absolute -top-6 text-xs whitespace-nowrap"
-                                    style={{ color: '#00C900' }}
-                                >
-                                    {event.name}
-                                    {event.value && <span className="ml-1 opacity-80">{formatCurrency(event.value)}</span>}
-                                </span>
-
-                                {/* Value - Optional, if needed separately */}
-                                {/* <span className="absolute -top-10 text-xs text-muted-foreground whitespace-nowrap">
-                  {formatCurrency(event.value)}
-                </span> */}
                             </div>
                         );
                     })}
-                </div>
 
-                {/* Expense Track (Red) - Below */}
-                <div className="absolute bottom-0 left-0 w-full translate-y-full">
-                    {expenseEvents.map((event) => {
-                        const startPos = getPosition(event.startYear);
-                        const endPos = getPosition(event.endYear || endYear);
-                        const width = endPos - startPos;
 
+                    {/* === FAIXA 2: RÉGUA CENTRAL (ANO / IDADE) === */}
+
+                    <div className="flex flex-col justify-center gap-1 sticky left-0 bg-[#1a1a1a] z-10 pr-4">
+                        <span className="text-xs text-slate-500 font-medium">Ano</span>
+                        <span className="text-xs text-slate-500 font-medium">Idade</span>
+                    </div>
+
+                    {years.map((year) => {
+                        const isMajorYear = year % 5 === 0;
                         return (
-                            <div
-                                key={event.id}
-                                className="absolute top-0"
-                                style={{ left: `${startPos}%`, width: `${width}%` }}
-                            >
-                                {/* Line */}
-                                <div
-                                    className="h-0.5 w-full absolute top-2"
-                                    style={{ backgroundColor: '#FF5151' }}
-                                />
-
-                                {/* Start Dot */}
-                                <div
-                                    className="absolute top-0 w-4 h-4 rounded-full border-2 border-background z-10"
-                                    style={{ backgroundColor: '#FF5151' }}
-                                />
-
-                                {/* Label */}
-                                <div
-                                    className="absolute top-6 left-0 text-xs flex flex-col"
-                                    style={{ color: '#FF5151' }}
-                                >
-                                    <span className="whitespace-nowrap font-medium">{event.name}</span>
-                                    <span className="whitespace-nowrap opacity-80">{formatCurrency(event.value)}</span>
-                                </div>
+                            <div key={`ruler-${year}`} className="flex flex-col items-center justify-center py-4 gap-1 relative">
+                                {isMajorYear ? (
+                                    <>
+                                        <span className="text-sm font-bold text-slate-100">{year}</span>
+                                        <span className="text-xs text-slate-500">{getAge(year)}</span>
+                                    </>
+                                ) : (
+                                    <div className="w-1 h-8" />
+                                )}
                             </div>
                         );
                     })}
+
+
+                    {/* === FAIXA 3: CUSTO DE VIDA === */}
+
+                    <div className="flex items-start pt-3 pr-4 sticky left-0 bg-[#1a1a1a] z-10">
+                        <div className="flex flex-col items-start gap-0.5">
+                            <div className="flex items-center gap-2">
+                                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS.red }} />
+                                <span className="text-sm font-medium leading-none" style={{ color: COLORS.red }}>Custo</span>
+                            </div>
+                            <span className="text-xs font-medium ml-4.5 pl-[18px]" style={{ color: COLORS.red }}>de vida</span>
+                        </div>
+                    </div>
+
+                    {years.map((year) => {
+                        const event = getExpenseEvent(year);
+                        return (
+                            <div key={`exp-${year}`} className="relative flex flex-col items-center justify-start h-24">
+                                <div className="absolute top-[11px] left-0 w-full border-t" style={{ borderColor: COLORS.greyLine }} />
+                                <div className="absolute top-1 h-3 w-px bg-slate-700" />
+
+                                {event && (
+                                    <div className="absolute top-[7px] left-1/2 -translate-x-1/2 flex flex-col items-center z-20 w-max">
+                                        <div
+                                            className="h-3 w-3 rounded-full shadow-[0_0_8px_rgba(255,81,81,0.5)] ring-4 ring-[#1a1a1a]"
+                                            style={{ backgroundColor: COLORS.red }}
+                                        />
+                                        {event.value && (
+                                            <span
+                                                className="mt-2 text-xs font-semibold whitespace-nowrap"
+                                                style={{ color: COLORS.red }}
+                                            >
+                                                {formatCurrency(event.value)}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
                 </div>
             </div>
         </div>

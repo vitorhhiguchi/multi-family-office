@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout';
+import { MovementModal, MovementFormData } from '@/components/dashboard/movement-modal';
+import { InsuranceModal, InsuranceFormData } from '@/components/dashboard/insurance-modal';
+import { SimulationModal, SimulationFormData } from '@/components/dashboard/simulation-modal';
 import { ClientSelector, PatrimonyCard, MovementCard, InsuranceCard, SimulationSelector } from '@/components/dashboard';
 import { ProjectionChart } from '@/components/charts';
 import { Timeline } from '@/components/timeline';
@@ -17,7 +20,7 @@ import {
 } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Plus } from 'lucide-react';
-import type { Client } from '@/types';
+import type { Client, Simulation, Insurance } from '@/types';
 
 export default function ProjectionPage() {
     const [selectedClient, setSelectedClient] = useState<Client>(mockClients[0]);
@@ -25,10 +28,51 @@ export default function ProjectionPage() {
     const [lifeStatus, setLifeStatus] = useState<'ALIVE' | 'DEAD' | 'INVALID'>('ALIVE');
     const [movementFilter, setMovementFilter] = useState<'financial' | 'immobilized'>('financial');
 
+    // Modals State
+    const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
+    const [isInsuranceModalOpen, setIsInsuranceModalOpen] = useState(false);
+    const [isSimulationModalOpen, setIsSimulationModalOpen] = useState(false);
+
+    // Editing State
+    const [editingSimulation, setEditingSimulation] = useState<Simulation | null>(null);
+    const [tradingInsurance, setEditingInsurance] = useState<Insurance | null>(null); // Use later if needed
+
     const toggleSimulation = (id: number) => {
         setSelectedSimulationIds((prev) =>
             prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
         );
+    };
+
+    // Handlers
+    const handleSaveMovement = async (data: MovementFormData) => {
+        console.log("Saving movement:", data);
+        setIsMovementModalOpen(false);
+    };
+
+    const handleSaveInsurance = async (data: InsuranceFormData) => {
+        console.log("Saving insurance:", data);
+        setIsInsuranceModalOpen(false);
+    };
+
+    const handleSaveSimulation = async (data: SimulationFormData) => {
+        console.log("Saving simulation:", data, "Editing ID:", editingSimulation?.id);
+        setIsSimulationModalOpen(false);
+        setEditingSimulation(null);
+    };
+
+    const handleEditSimulation = (sim: Simulation) => {
+        setEditingSimulation(sim);
+        setIsSimulationModalOpen(true);
+    };
+
+    const handleDuplicateSimulation = (sim: Simulation) => {
+        console.log("Duplicating simulation:", sim.id);
+        // Helper to eventually call API
+    };
+
+    const handleDeleteSimulation = (sim: Simulation) => {
+        console.log("Deleting simulation:", sim.id);
+        // Helper to eventually call API
     };
 
     const formatCurrency = (val: number) => {
@@ -120,7 +164,6 @@ export default function ProjectionPage() {
                         />
                         <span className="text-base text-muted-foreground group-hover:text-foreground transition-colors">Morto</span>
                     </label>
-
                     <label className="flex items-center gap-2 cursor-pointer group">
                         <div className={cn(
                             "w-5 h-5 rounded-full border border-muted-foreground flex items-center justify-center transition-colors",
@@ -168,6 +211,15 @@ export default function ProjectionPage() {
                                 isOriginal: true,
                             },
                             {
+                                simulationId: 99,
+                                simulationName: 'Realizado',
+                                projections: mockProjections.map((p) => ({
+                                    ...p,
+                                    patrimonyEnd: p.patrimonyEnd,
+                                })).slice(0, 5),
+                                isRealized: true,
+                            },
+                            {
                                 simulationId: 2,
                                 simulationName: 'Situação atual',
                                 projections: mockProjections.map((p) => ({
@@ -194,7 +246,13 @@ export default function ProjectionPage() {
                             simulations={mockSimulations}
                             selectedIds={selectedSimulationIds}
                             onToggle={toggleSimulation}
-                            onAddClick={() => { }}
+                            onAddClick={() => {
+                                setEditingSimulation(null);
+                                setIsSimulationModalOpen(true);
+                            }}
+                            onEditSimulation={handleEditSimulation}
+                            onDuplicateSimulation={handleDuplicateSimulation}
+                            onDeleteSimulation={handleDeleteSimulation}
                         />
                     </div>
                 </div>
@@ -202,12 +260,11 @@ export default function ProjectionPage() {
                 {/* Timeline Section */}
                 <div className="bg-[#1a1a1a] border border-[#333333] rounded-2xl p-6 mb-6">
                     <Timeline
-                        incomeEvents={mockIncomeTimeline}
-                        expenseEvents={mockExpenseTimeline}
+                        events={[...mockIncomeTimeline, ...mockExpenseTimeline]}
                         startYear={2025}
                         endYear={2060}
                         clientBirthYear={clientBirthYear}
-                        onAddClick={() => { }}
+                        onAddClick={() => setIsMovementModalOpen(true)}
                     />
                 </div>
 
@@ -244,7 +301,10 @@ export default function ProjectionPage() {
                         </div>
 
                         <div className="flex justify-end">
-                            <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors">
+                            <button
+                                onClick={() => setIsMovementModalOpen(true)}
+                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors"
+                            >
                                 <Plus className="h-4 w-4" />
                                 Adicionar
                             </button>
@@ -264,7 +324,10 @@ export default function ProjectionPage() {
                 <div>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-normal text-[#67AEFA]">Seguros</h2>
-                        <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors">
+                        <button
+                            onClick={() => setIsInsuranceModalOpen(true)}
+                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#333333] text-sm text-muted-foreground hover:text-foreground hover:border-[#444444] transition-colors"
+                        >
                             <Plus className="h-4 w-4" />
                             Adicionar
                         </button>
@@ -276,6 +339,30 @@ export default function ProjectionPage() {
                         ))}
                     </div>
                 </div>
+
+                {/* Modals */}
+                <MovementModal
+                    open={isMovementModalOpen}
+                    onOpenChange={setIsMovementModalOpen}
+                    onSubmit={handleSaveMovement}
+                />
+
+                <InsuranceModal
+                    open={isInsuranceModalOpen}
+                    onOpenChange={setIsInsuranceModalOpen}
+                    onSubmit={handleSaveInsurance}
+                />
+
+                <SimulationModal
+                    open={isSimulationModalOpen}
+                    onOpenChange={setIsSimulationModalOpen}
+                    onSubmit={handleSaveSimulation}
+                    initialData={editingSimulation ? {
+                        name: editingSimulation.name,
+                        startDate: editingSimulation.startDate ? new Date(editingSimulation.startDate) : new Date(),
+                        inflationRate: editingSimulation.realRate ?? 4,
+                    } : undefined}
+                />
             </div>
         </MainLayout>
     );

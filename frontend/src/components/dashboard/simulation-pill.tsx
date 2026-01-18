@@ -1,7 +1,13 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { MoreVertical } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreVertical, Edit, Copy, Trash2 } from 'lucide-react';
 import type { Simulation } from '@/types';
 
 // Anka Design System Colors
@@ -17,7 +23,9 @@ interface SimulationPillProps {
     isSelected: boolean;
     variant: 'original' | 'current' | 'realized';
     onClick: () => void;
-    onMenuClick?: () => void;
+    onEdit?: () => void;
+    onDuplicate?: () => void;
+    onDelete?: () => void;
 }
 
 export function SimulationPill({
@@ -25,7 +33,9 @@ export function SimulationPill({
     isSelected,
     variant,
     onClick,
-    onMenuClick,
+    onEdit,
+    onDuplicate,
+    onDelete,
 }: SimulationPillProps) {
     const getColor = () => {
         switch (variant) {
@@ -71,16 +81,39 @@ export function SimulationPill({
             <span style={{ color: isSelected ? color : undefined }}>
                 {simulation.name}
             </span>
-            {onMenuClick && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onMenuClick();
-                    }}
-                    className="ml-1 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-white/10 transition-colors"
-                >
-                    <MoreVertical className="h-4 w-4" />
-                </button>
+
+            {(onEdit || onDuplicate || onDelete) && (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                className="ml-1 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-white/10 transition-colors focus:outline-none"
+                            >
+                                <MoreVertical className="h-4 w-4" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-[#1a1a1a] border-[#333] text-white">
+                            {onEdit && (
+                                <DropdownMenuItem onClick={onEdit} className="focus:bg-[#262626] focus:text-white cursor-pointer">
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    <span>Editar</span>
+                                </DropdownMenuItem>
+                            )}
+                            {onDuplicate && (
+                                <DropdownMenuItem onClick={onDuplicate} className="focus:bg-[#262626] focus:text-white cursor-pointer">
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    <span>Criar versão</span>
+                                </DropdownMenuItem>
+                            )}
+                            {onDelete && (
+                                <DropdownMenuItem onClick={onDelete} className="focus:bg-[#262626] focus:text-red-400 text-red-500 cursor-pointer">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Deletar</span>
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             )}
         </div>
     );
@@ -91,6 +124,9 @@ interface SimulationSelectorProps {
     selectedIds: number[];
     onToggle: (id: number) => void;
     onAddClick?: () => void;
+    onEditSimulation?: (simulation: Simulation) => void;
+    onDuplicateSimulation?: (simulation: Simulation) => void;
+    onDeleteSimulation?: (simulation: Simulation) => void;
 }
 
 export function SimulationSelector({
@@ -98,6 +134,9 @@ export function SimulationSelector({
     selectedIds,
     onToggle,
     onAddClick,
+    onEditSimulation,
+    onDuplicateSimulation,
+    onDeleteSimulation,
 }: SimulationSelectorProps) {
     return (
         <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -106,19 +145,17 @@ export function SimulationSelector({
                     key={sim.id}
                     simulation={sim}
                     isSelected={selectedIds.includes(sim.id)}
-                    variant={sim.isCurrentSituation ? 'original' : 'current'}
+                    variant={sim.isCurrentSituation ? 'current' : 'original'} // Fix logic: original is default, current is green
                     onClick={() => onToggle(sim.id)}
-                    onMenuClick={() => { }}
+                    onEdit={onEditSimulation ? () => onEditSimulation(sim) : undefined}
+                    onDuplicate={onDuplicateSimulation ? () => onDuplicateSimulation(sim) : undefined}
+                    onDelete={onDeleteSimulation ? () => onDeleteSimulation(sim) : undefined}
                 />
             ))}
             <button
                 className="flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors"
                 style={{ borderColor: ANKA_COLORS.yellow, color: ANKA_COLORS.yellow }}
             >
-                <div
-                    className="w-3 h-3 rounded-full border-2"
-                    style={{ borderColor: ANKA_COLORS.yellow }}
-                />
                 Realizado
             </button>
             {onAddClick && (

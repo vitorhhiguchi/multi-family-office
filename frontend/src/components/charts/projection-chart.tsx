@@ -13,10 +13,11 @@ import {
 import { YearProjection } from '@/types';
 
 // Anka Design System Colors
+// Anka Design System Colors
 const ANKA_CHART_COLORS = {
-    yellow: '#F7B748',  // Plano Original (linha contínua amarela)
-    blue: '#67AEFA',    // Comparação (linha pontilhada azul)
-    green: '#48F7A1',   // Situação Atual (linha pontilhada verde)
+    yellow: '#F7B748',  // Realizado (linha pontilhada amarela)
+    blue: '#67AEFA',    // Plano Original (linha contínua azul)
+    green: '#48F7A1',   // Situação Atual (linha tracejada verde)
 };
 
 interface ProjectionChartProps {
@@ -27,6 +28,7 @@ interface ProjectionChartProps {
         color?: string;
         isOriginal?: boolean;
         isDashed?: boolean;
+        isRealized?: boolean;
     }[];
 }
 
@@ -87,10 +89,11 @@ export function ProjectionChart({ projections }: ProjectionChartProps) {
         return dataPoint;
     }) || [];
 
-    const getColor = (index: number, isOriginal?: boolean) => {
-        if (isOriginal) return ANKA_CHART_COLORS.yellow;
-        const colors = [ANKA_CHART_COLORS.blue, ANKA_CHART_COLORS.green];
-        return colors[index % colors.length];
+    const getColor = (sim: ProjectionChartProps['projections'][0]) => {
+        if (sim.isRealized) return ANKA_CHART_COLORS.yellow;
+        if (sim.isOriginal) return ANKA_CHART_COLORS.blue;
+        if (sim.simulationName.toLowerCase().includes('situação')) return ANKA_CHART_COLORS.green;
+        return ANKA_CHART_COLORS.blue; // Fallback
     };
 
     return (
@@ -129,16 +132,20 @@ export function ProjectionChart({ projections }: ProjectionChartProps) {
                             <span className="text-sm text-muted-foreground">{value}</span>
                         )}
                     />
-                    {projections.map((sim, index) => (
+                    {projections.map((sim) => (
                         <Line
                             key={sim.simulationId}
                             type="monotone"
                             dataKey={sim.simulationName}
-                            stroke={getColor(index, sim.isOriginal)}
-                            strokeWidth={2}
-                            strokeDasharray={sim.isDashed ? '8 4' : undefined}
-                            dot={false} // Remove dots - only dashed lines
-                            activeDot={{ r: 6, fill: getColor(index, sim.isOriginal), stroke: '#0f0f0f', strokeWidth: 2 }}
+                            stroke={getColor(sim)}
+                            strokeWidth={3}
+                            strokeDasharray={
+                                sim.isRealized ? "0 6" :
+                                    sim.isDashed ? "8 4" : undefined
+                            }
+                            strokeLinecap={sim.isRealized ? "round" : "butt"}
+                            dot={false}
+                            activeDot={{ r: 6, fill: getColor(sim), stroke: '#0f0f0f', strokeWidth: 2 }}
                         />
                     ))}
                 </LineChart>
