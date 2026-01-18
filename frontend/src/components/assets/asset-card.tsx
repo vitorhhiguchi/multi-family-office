@@ -79,7 +79,6 @@ export function AssetCard({ asset, date, onEdit, onDelete }: AssetCardProps) {
         );
     };
 
-    return (
     const borderColor = isRealEstate ? 'border-[#03B6AD]' : 'border-[#6777FA]';
     const valueColor = isRealEstate ? 'text-[#03B6AD]' : 'text-[#6777FA]';
 
@@ -130,6 +129,5 @@ export function AssetCard({ asset, date, onEdit, onDelete }: AssetCardProps) {
                 )}
             </div>
         </div>
-    );
     );
 }
