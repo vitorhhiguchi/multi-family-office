@@ -41,11 +41,11 @@ export function MovementCard({ movement, onEdit, onDelete }: MovementCardProps) 
 
     return (
         <div className={cn(
-            "p-5 rounded-2xl bg-[#1a1a1a] border relative flex justify-between items-start group",
+            "p-5 rounded-2xl bg-[#1a1a1a] border relative flex flex-col justify-between group min-h-[160px]",
             isIncome ? "border-[#48F7A1]" : "border-[#FF5151]"
         )}>
             {/* Action buttons - show on hover */}
-            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 {onEdit && (
                     <button
                         onClick={() => onEdit(movement)}
@@ -67,21 +67,23 @@ export function MovementCard({ movement, onEdit, onDelete }: MovementCardProps) 
             </div>
 
             <div>
-                <h3 className="text-lg font-normal text-[#e5e5e5] mb-1">{movement.name}</h3>
-                <div className="text-sm text-muted-foreground mb-1">
-                    {formatDate(movement.startDate)} {movement.endDate ? `- ${formatDate(movement.endDate)}` : ''}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                    Frequência: <span className="text-[#e5e5e5]">{frequencyLabel}</span>
-                </div>
-                {movement.category && (
-                    <div className="text-sm text-muted-foreground mt-1">
-                        {movement.category === 'WORK' ? 'Trabalho' : movement.category === 'PASSIVE' ? 'Passiva' : 'Outros'}
+                <h3 className="text-lg font-normal text-[#e5e5e5] mb-2">{movement.name}</h3>
+                <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">
+                        {formatDate(movement.startDate)}
                     </div>
-                )}
+                    <div className="text-sm text-muted-foreground">
+                        Frequência: <span className="text-[#e5e5e5]">{frequencyLabel}</span>
+                    </div>
+                    {movement.category && (
+                        <div className="text-sm text-muted-foreground">
+                            {movement.category === 'WORK' ? 'Trabalho' : movement.category === 'PASSIVE' ? 'Passiva' : 'Outros'}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end mt-auto">
+            <div className="flex items-center gap-2 self-end mt-4">
                 {isIncome ? (
                     <ArrowUp className="h-4 w-4 text-[#48F7A1]" />
                 ) : (

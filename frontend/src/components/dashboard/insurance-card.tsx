@@ -22,7 +22,7 @@ export function InsuranceCard({ insurance, onEdit, onDelete }: InsuranceCardProp
     const durationYears = insurance.durationMonths ? Math.floor(insurance.durationMonths / 12) : 15;
 
     return (
-        <div className="p-5 rounded-2xl bg-[#1a1a1a] border border-[#67AEFA] relative flex justify-between items-start group">
+        <div className="p-5 rounded-2xl bg-[#1a1a1a] border border-[#48F7A1] relative flex flex-col justify-between group min-h-[160px]">
             {/* Action buttons - show on hover */}
             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {onEdit && (
@@ -61,7 +61,7 @@ export function InsuranceCard({ insurance, onEdit, onDelete }: InsuranceCardProp
                 </div>
             </div>
 
-            <div className="flex items-center self-end mt-auto">
+            <div className="flex items-center self-end mt-4">
                 <span className="text-lg font-medium text-[#a855f7]">
                     {formatCurrency(insurance.insuredValue)}
                 </span>

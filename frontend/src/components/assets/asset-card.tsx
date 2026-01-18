@@ -80,53 +80,56 @@ export function AssetCard({ asset, date, onEdit, onDelete }: AssetCardProps) {
     };
 
     return (
-        <div className="group relative bg-[#1a1a1a] border border-[#333333] rounded-lg p-4 transition-all hover:border-[#555555]">
-            <div className="flex justify-between items-start">
-                <div className="flex flex-col gap-1">
-                    <span className="font-semibold text-white text-base truncate max-w-[200px]" title={asset.name}>
-                        {asset.name}
-                    </span>
+    const borderColor = isRealEstate ? 'border-[#03B6AD]' : 'border-[#6777FA]';
+    const valueColor = isRealEstate ? 'text-[#03B6AD]' : 'text-[#6777FA]';
 
-                    {!isRealEstate && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                                {asset.type === 'FINANCIAL' ? 'Renda Fixa' : 'Outros'}
-                            </span>
-                        </div>
-                    )}
-
-                    {isRealEstate && renderFinancingStatus()}
-                </div>
-
-                <div className="flex flex-col items-end gap-1">
-                    <span className="font-bold text-white text-lg">
-                        {formatCurrency(currentValue)}
-                    </span>
-
-                    {/* Se tiver valor futuro/total, exibe aqui. Financiamento pode ter detalhes extras */}
-                    {asset.financing && (
-                        <span className="text-xs text-muted-foreground">
-                            {/* Placeholder para info extra se necessário */}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Actions (hover) */}
-            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1a1a1a]/80 p-1 rounded-md backdrop-blur-sm">
+    return (
+        <div className={cn(
+            "p-5 rounded-2xl bg-[#1a1a1a] border relative flex flex-col justify-between group min-h-[160px]",
+            borderColor
+        )}>
+            {/* Action buttons - show on hover */}
+            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 <button
                     onClick={() => onEdit(asset)}
-                    className="p-1.5 text-muted-foreground hover:text-white hover:bg-white/10 rounded-md transition-colors"
+                    className="p-1.5 rounded-md bg-[#262626] hover:bg-[#333] text-muted-foreground hover:text-white transition-colors"
                 >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-3.5 w-3.5" />
                 </button>
                 <button
                     onClick={() => onDelete(asset)}
-                    className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md transition-colors"
+                    className="p-1.5 rounded-md bg-[#262626] hover:bg-red-900/50 text-muted-foreground hover:text-red-400 transition-colors"
                 >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                 </button>
             </div>
+
+            <div>
+                <h3 className="text-lg font-normal text-[#e5e5e5] mb-2 truncate" title={asset.name}>
+                    {asset.name}
+                </h3>
+
+                <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">
+                        {isRealEstate ? 'Imóvel' : 'Renda Fixa / Invest.'}
+                    </div>
+
+                    {isRealEstate && renderFinancingStatus()}
+                </div>
+            </div>
+
+            <div className="flex items-center self-end mt-4 gap-2">
+                {isRealEstate ? <Building2 className="h-4 w-4 text-[#03B6AD]" /> : <Wallet className="h-4 w-4 text-[#6777FA]" />}
+                <span className={cn("text-lg font-medium", valueColor)}>
+                    {formatCurrency(currentValue)}
+                </span>
+                {asset.financing && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                        {/* Optional extra info */}
+                    </span>
+                )}
+            </div>
         </div>
+    );
     );
 }
