@@ -1,70 +1,63 @@
-# MFO - Multi Family Office
+# MFO - Wealth Protection Tool (Anka)
 
-Ferramenta para acompanhar o alinhamento dos clientes ao planejamento financeiro, projetar a evolução patrimonial e registrar eventos.
+Ferramenta de Multi Family Office para projeção patrimonial, consolidação de ativos e planejamento financeiro de longo prazo.
 
 ## Estrutura do Projeto
 
-```
-mfo-v4/
-├── backend/          # API Node.js + Fastify
-├── frontend/         # Next.js 14 (a implementar)
-└── docker-compose.yml
-```
+O projeto é um monorepo dividido em:
 
-## Requisitos
+- `/backend`: API Node.js com Fastify e Prisma (PostgreSQL).
+- `/frontend`: Aplicação Web Next.js 14 com Tailwind CSS e Shadcn/UI.
 
-- Docker e Docker Compose
-- Node.js 20+ (para desenvolvimento local)
+## Pré-requisitos
 
-## Quick Start
+- Node.js 18+
+- Docker e Docker Compose (para o banco de dados)
+- Git
 
-```bash
-# Subir todos os serviços
-docker compose up --build
+## Como Rodar o Projeto
 
-# Backend disponível em: http://localhost:3001
-# Frontend disponível em: http://localhost:3000
-# Swagger docs: http://localhost:3001/docs
-```
+1. **Clone o repositório:**
+   ```bash
+   git clone <url-do-repo>
+   cd mfo-v4
+   ```
 
-## Desenvolvimento Local
+2. **Inicie o Banco de Dados:**
+   Na raiz do projeto:
+   ```bash
+   docker-compose up -d
+   ```
 
-### Backend
+3. **Backend:**
+   Abra um terminal e vá para a pasta `backend`:
+   ```bash
+   cd backend
+   npm install
+   npx prisma migrate dev
+   npm run seed  # (Opcional) Popula com dados iniciais
+   npm run dev
+   ```
+   A API rodará em `http://localhost:3333`.
 
-```bash
-cd backend
-npm install
-npm run prisma:generate
-npm run prisma:migrate
-npm run dev
-```
+4. **Frontend:**
+   Abra outro terminal e vá para a pasta `frontend`:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Acesse a aplicação em `http://localhost:3000`.
 
-### Frontend
+## Funcionalidades Principais
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- **Projeção Patrimonial**: Gráficos interativos até 2060.
+- **Simulações**: Cenários (Otimista, Conservador) e versão histórica.
+- **Alocações**: Gestão de ativos financeiros e imobiliários (com financiamento).
+- **Consolidação**: Visão unificada do patrimônio.
+- **Histórico**: Versionamento seguro de simulações passadas.
 
-## Funcionalidades
+## Tecnologias
 
-- **Projeção Patrimonial**: Projeção ano a ano até 2060 com taxa real composta
-- **Simulações**: Criar, versionar e comparar cenários
-- **Alocações**: Ativos financeiros e imobilizados com histórico
-- **Movimentações**: Entradas e saídas com frequência flexível
-- **Seguros**: Vida e invalidez com impacto na projeção
-
-## Arquitetura
-
-### Backend
-- Fastify 4 + TypeScript
-- Prisma ORM + PostgreSQL 15
-- Zod para validação
-- Jest + Supertest para testes
-
-### Frontend
-- Next.js 14 (App Router)
-- ShadCN/UI (dark-mode)
-- TanStack Query
-- React Hook Form + Zod
+- **Backend**: Fastify, Prisma ORM, PostgreSQL, Zod, TypeScript.
+- **Frontend**: Next.js (App Router), React Query, Recharts, TailwindCSS, Shadcn/UI.
