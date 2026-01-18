@@ -1,8 +1,8 @@
 // Services barrel export
 // Export all API services here
-export * from './clients';
-export * from './simulations';
-export * from './assets';
-export * from './movements';
-export * from './insurances';
-export * from './projections';
+export { clientsService } from './clients';
+export { simulationsService } from './simulations';
+export { assetsService } from './assets';
+export { movementsService } from './movements';
+export { insurancesService } from './insurances';
+export { projectionsService } from './projections';

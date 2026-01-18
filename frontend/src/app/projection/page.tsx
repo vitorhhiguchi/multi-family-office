@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout';
 import { MovementModal, MovementFormData } from '@/components/dashboard/movement-modal';
 import { InsuranceModal, InsuranceFormData } from '@/components/dashboard/insurance-modal';
@@ -8,56 +8,182 @@ import { SimulationModal, SimulationFormData } from '@/components/dashboard/simu
 import { ClientSelector, PatrimonyCard, MovementCard, InsuranceCard, SimulationSelector } from '@/components/dashboard';
 import { ProjectionChart } from '@/components/charts';
 import { Timeline } from '@/components/timeline';
-import {
-    mockClients,
-    mockSimulations,
-    mockMovements,
-    mockInsurances,
-    mockProjections,
-    mockIncomeTimeline,
-    mockExpenseTimeline,
-    mockPatrimonySummaries
-} from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { ChevronDown, Plus } from 'lucide-react';
-import type { Client, Simulation, Insurance } from '@/types';
+import { ChevronDown, Plus, Loader2 } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
+import type { Client, Simulation, Insurance, Movement } from '@/types';
+
+import {
+    useClients,
+    useSimulations,
+    useCreateSimulation,
+    useUpdateSimulation,
+    useDeleteSimulation,
+    useCreateSimulationVersion,
+    useMovements,
+    useCreateMovement,
+    useUpdateMovement,
+    useDeleteMovement,
+    useInsurances,
+    useCreateInsurance,
+    useUpdateInsurance,
+    useDeleteInsurance,
+    useProjections
+} from '@/hooks';
+
+// Mock summary since backend doesn't provide this yet
+const mockPatrimonySummaries = [
+    { year: 2026, label: 'Curto Prazo', age: 41, value: 3250100, percentChange: 12.3, isHighlight: false },
+    { year: 2030, label: 'Médio Prazo', age: 45, value: 4890500, percentChange: 45.8, isHighlight: false },
+    { year: 2045, label: 'Aposentadoria', age: 60, value: 12500000, percentChange: 150.2, isHighlight: true },
+];
 
 export default function ProjectionPage() {
-    const [selectedClient, setSelectedClient] = useState<Client>(mockClients[0]);
-    const [selectedSimulationIds, setSelectedSimulationIds] = useState<number[]>([1, 2]);
+    // Selection state
+    const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const [selectedSimulationIds, setSelectedSimulationIds] = useState<number[]>([]);
     const [lifeStatus, setLifeStatus] = useState<'ALIVE' | 'DEAD' | 'INVALID'>('ALIVE');
     const [movementFilter, setMovementFilter] = useState<'financial' | 'immobilized'>('financial');
 
-    // Modals State
+    // Data Fetching
+    const { data: clients, isLoading: isLoadingClients } = useClients();
+    const { data: simulations, isLoading: isLoadingSimulations } = useSimulations(selectedClient?.id);
+
+    // Select first client by default
+    useEffect(() => {
+        if (clients && clients.length > 0 && !selectedClient) {
+            setSelectedClient(clients[0]);
+        }
+    }, [clients, selectedClient]);
+
+    // Select first two simulations by default when simulations load
+    useEffect(() => {
+        if (simulations && simulations.length > 0 && selectedSimulationIds.length === 0) {
+            // Prefer current situation + one other
+            const current = simulations.find(s => s.isCurrentSituation);
+            const others = simulations.filter(s => !s.isCurrentSituation).slice(0, 1);
+            if (current) {
+                setSelectedSimulationIds([current.id, ...others.map(s => s.id)]);
+            } else {
+                setSelectedSimulationIds(simulations.slice(0, 2).map(s => s.id));
+            }
+        }
+    }, [simulations, selectedSimulationIds]);
+
+    // Derived state for default simulation (usually the "Current Situation" or the first selected)
+    // We use this for adding movements/insurances context
+    const activeSimulationId = selectedSimulationIds.length > 0 ? selectedSimulationIds[0] : undefined;
+
+    // Fetch dependent data
+    const { data: movements } = useMovements(activeSimulationId);
+    const { data: insurances } = useInsurances(activeSimulationId);
+    const { data: projectionsData, isLoading: isLoadingProjections } = useProjections(selectedSimulationIds, 2060, lifeStatus);
+
+    // Modals & Mutation Hooks
     const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
     const [isInsuranceModalOpen, setIsInsuranceModalOpen] = useState(false);
     const [isSimulationModalOpen, setIsSimulationModalOpen] = useState(false);
 
     // Editing State
     const [editingSimulation, setEditingSimulation] = useState<Simulation | null>(null);
-    const [tradingInsurance, setEditingInsurance] = useState<Insurance | null>(null); // Use later if needed
+    // const [editingMovement, setEditingMovement] = useState<Movement | null>(null); // TODO: Implement edit logic
 
+    // Mutation Hooks
+    const createSimulation = useCreateSimulation();
+    const updateSimulation = useUpdateSimulation();
+    const deleteSimulation = useDeleteSimulation();
+    const createVersion = useCreateSimulationVersion();
+
+    const createMovement = useCreateMovement();
+    // const updateMovement = useUpdateMovement(); // TODO
+    // const deleteMovement = useDeleteMovement(); // TODO
+
+    const createInsurance = useCreateInsurance();
+    // const updateInsurance = useUpdateInsurance(); // TODO
+
+    // Handlers
     const toggleSimulation = (id: number) => {
         setSelectedSimulationIds((prev) =>
             prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
         );
     };
 
-    // Handlers
     const handleSaveMovement = async (data: MovementFormData) => {
-        console.log("Saving movement:", data);
-        setIsMovementModalOpen(false);
+        if (!activeSimulationId) {
+            toast.error("Selecione uma simulação para adicionar movimentações.");
+            return;
+        }
+
+        try {
+            await createMovement.mutateAsync({
+                ...data,
+                simulationId: activeSimulationId,
+                category: 'OTHER', // Default or derived
+                endDate: data.endDate ? data.endDate.toISOString() : undefined,
+                startDate: data.startDate.toISOString(),
+            });
+            toast.success("Movimentação criada com sucesso!");
+            setIsMovementModalOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao criar movimentação.");
+        }
     };
 
     const handleSaveInsurance = async (data: InsuranceFormData) => {
-        console.log("Saving insurance:", data);
-        setIsInsuranceModalOpen(false);
+        if (!activeSimulationId) {
+            toast.error("Selecione uma simulação para adicionar seguros.");
+            return;
+        }
+
+        try {
+            await createInsurance.mutateAsync({
+                ...data,
+                type: 'LIFE', // Simple default for now, TODO: Add type to modal or infer
+                simulationId: activeSimulationId,
+                premium: data.premiumValue,
+                startDate: data.startDate.toISOString(),
+            });
+            toast.success("Seguro criado com sucesso!");
+            setIsInsuranceModalOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao criar seguro.");
+        }
     };
 
     const handleSaveSimulation = async (data: SimulationFormData) => {
-        console.log("Saving simulation:", data, "Editing ID:", editingSimulation?.id);
-        setIsSimulationModalOpen(false);
-        setEditingSimulation(null);
+        if (!selectedClient) {
+            toast.error("Selecione um cliente primeiro.");
+            return;
+        }
+
+        try {
+            if (editingSimulation) {
+                await updateSimulation.mutateAsync({
+                    id: editingSimulation.id,
+                    data: {
+                        name: data.name,
+                        startDate: data.startDate.toISOString(),
+                        realRate: data.inflationRate
+                    }
+                });
+                toast.success("Simulação atualizada com sucesso!");
+                setEditingSimulation(null);
+            } else {
+                await createSimulation.mutateAsync({
+                    name: data.name,
+                    startDate: data.startDate.toISOString(),
+                    realRate: data.inflationRate,
+                    clientId: selectedClient.id
+                });
+                toast.success("Simulação criada com sucesso!");
+            }
+            setIsSimulationModalOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao salvar simulação.");
+        }
     };
 
     const handleEditSimulation = (sim: Simulation) => {
@@ -65,14 +191,25 @@ export default function ProjectionPage() {
         setIsSimulationModalOpen(true);
     };
 
-    const handleDuplicateSimulation = (sim: Simulation) => {
-        console.log("Duplicating simulation:", sim.id);
-        // Helper to eventually call API
+    const handleDuplicateSimulation = async (sim: Simulation) => {
+        try {
+            await createVersion.mutateAsync(sim.id);
+            toast.success("Nova versão criada com sucesso!");
+        } catch (error) {
+            toast.error("Erro ao duplicar simulação.");
+        }
     };
 
-    const handleDeleteSimulation = (sim: Simulation) => {
-        console.log("Deleting simulation:", sim.id);
-        // Helper to eventually call API
+    const handleDeleteSimulation = async (sim: Simulation) => {
+        if (confirm(`Tem certeza que deseja excluir a simulação "${sim.name}"?`)) {
+            try {
+                await deleteSimulation.mutateAsync(sim.id);
+                setSelectedSimulationIds(prev => prev.filter(id => id !== sim.id));
+                toast.success("Simulação excluída.");
+            } catch (error) {
+                toast.error("Erro ao excluir simulação.");
+            }
+        }
     };
 
     const formatCurrency = (val: number) => {
@@ -83,19 +220,46 @@ export default function ProjectionPage() {
         }).format(val);
     };
 
-    // Filter movements by type
-    const financialMovements = mockMovements.filter(
-        (m) => m.frequency !== 'ONE_TIME' || m.value < 500000
+    // Filter movements by type (using backend data)
+    const activeMovements = movements || [];
+    const financialMovements = activeMovements.filter(
+        // Logic: Not immobilized (TODO: Add explicit 'immobilized' check if added to schema, for now name-based hack or type)
+        (m) => m.type === 'INCOME' || (m.type === 'EXPENSE' && m.name !== 'Compra de Imóvel')
     );
-    const immobilizedMovements = mockMovements.filter(
-        (m) => m.name === 'Compra de Imóvel'
+    const immobilizedMovements = activeMovements.filter(
+        (m) => m.name === 'Compra de Imóvel' // TODO: Better filtering strategy
     );
 
     // Client birth year for timeline
-    const clientBirthYear = new Date(selectedClient.birthDate).getFullYear();
+    const clientBirthYear = selectedClient ? new Date(selectedClient.birthDate).getFullYear() : 1985;
+
+    // Prepare chart data
+    // Map projectionsData (ProjectionResult[]) to the format expected by ProjectionChart
+    const chartProjections = (projectionsData || []).map(p => {
+        const sim = simulations?.find(s => s.id === p.simulationId);
+        return {
+            simulationId: p.simulationId,
+            simulationName: p.simulationName,
+            projections: p.projections,
+            isOriginal: sim?.isCurrentSituation, // Use 'Current Situation' as 'Original/Blue' visual style? Or explicit?
+            isRealized: p.simulationName === 'Realizado', // Name convetion?
+            isDashed: !sim?.isCurrentSituation && p.simulationName !== 'Realizado',
+        };
+    });
+
+    if (isLoadingClients) {
+        return (
+            <MainLayout>
+                <div className="min-h-screen flex items-center justify-center bg-background text-white">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+            </MainLayout>
+        );
+    }
 
     return (
         <MainLayout>
+            <Toaster position="top-right" richColors theme="dark" />
             <div className="min-h-screen bg-background p-6 lg:p-8">
                 {/* Header Tabs */}
                 <div className="flex items-center justify-center gap-8 mb-8">
@@ -114,11 +278,13 @@ export default function ProjectionPage() {
                 <div className="flex flex-col lg:flex-row items-start gap-8 mb-8">
                     {/* Left: Client Selector & Total */}
                     <div className="flex-1">
-                        <ClientSelector
-                            clients={mockClients}
-                            selectedClient={selectedClient}
-                            onSelect={setSelectedClient}
-                        />
+                        {clients && (
+                            <ClientSelector
+                                clients={clients}
+                                selectedClient={selectedClient || clients[0]}
+                                onSelect={setSelectedClient}
+                            />
+                        )}
                         <div className="mt-4">
                             <p className="text-xs text-muted-foreground">Patrimônio Líquido Total</p>
                             <div className="flex items-baseline gap-2">
@@ -132,7 +298,7 @@ export default function ProjectionPage() {
 
                     {/* Right: Patrimony Cards */}
                     <div className="flex gap-4 overflow-x-auto pb-2">
-                        {mockPatrimonySummaries.map((summary, index) => (
+                        {mockPatrimonySummaries.map((summary) => (
                             <PatrimonyCard
                                 key={summary.year}
                                 year={summary.year}
@@ -203,64 +369,32 @@ export default function ProjectionPage() {
                     </div>
 
                     <ProjectionChart
-                        projections={[
-                            {
-                                simulationId: 1,
-                                simulationName: 'Plano Original',
-                                projections: mockProjections,
-                                isOriginal: true,
-                            },
-                            {
-                                simulationId: 99,
-                                simulationName: 'Realizado',
-                                projections: mockProjections.map((p) => ({
-                                    ...p,
-                                    patrimonyEnd: p.patrimonyEnd,
-                                })).slice(0, 5),
-                                isRealized: true,
-                            },
-                            {
-                                simulationId: 2,
-                                simulationName: 'Situação atual',
-                                projections: mockProjections.map((p) => ({
-                                    ...p,
-                                    patrimonyEnd: p.patrimonyEnd * 0.75,
-                                })),
-                                isDashed: true,
-                            },
-                            {
-                                simulationId: 3,
-                                simulationName: 'Comparação',
-                                projections: mockProjections.map((p) => ({
-                                    ...p,
-                                    patrimonyEnd: p.patrimonyEnd * 0.6,
-                                })),
-                                isDashed: true,
-                            },
-                        ]}
+                        projections={chartProjections}
                     />
 
                     {/* Simulation Pills - CENTERED */}
                     <div className="mt-6 pt-6 border-t border-[#333333]">
-                        <SimulationSelector
-                            simulations={mockSimulations}
-                            selectedIds={selectedSimulationIds}
-                            onToggle={toggleSimulation}
-                            onAddClick={() => {
-                                setEditingSimulation(null);
-                                setIsSimulationModalOpen(true);
-                            }}
-                            onEditSimulation={handleEditSimulation}
-                            onDuplicateSimulation={handleDuplicateSimulation}
-                            onDeleteSimulation={handleDeleteSimulation}
-                        />
+                        {simulations && (
+                            <SimulationSelector
+                                simulations={simulations}
+                                selectedIds={selectedSimulationIds}
+                                onToggle={toggleSimulation}
+                                onAddClick={() => {
+                                    setEditingSimulation(null);
+                                    setIsSimulationModalOpen(true);
+                                }}
+                                onEditSimulation={handleEditSimulation}
+                                onDuplicateSimulation={handleDuplicateSimulation}
+                                onDeleteSimulation={handleDeleteSimulation}
+                            />
+                        )}
                     </div>
                 </div>
 
                 {/* Timeline Section */}
                 <div className="bg-[#1a1a1a] border border-[#333333] rounded-2xl p-6 mb-6">
                     <Timeline
-                        events={[...mockIncomeTimeline, ...mockExpenseTimeline]}
+                        events={[]} // TODO: Fetch timeline events (movements) and map them
                         startYear={2025}
                         endYear={2060}
                         clientBirthYear={clientBirthYear}
@@ -317,6 +451,11 @@ export default function ProjectionPage() {
                             .map((movement) => (
                                 <MovementCard key={movement.id} movement={movement} />
                             ))}
+                        {(!activeMovements || activeMovements.length === 0) && (
+                            <div className="col-span-full text-center text-muted-foreground py-8">
+                                Nenhuma movimentação cadastrada nesta simulação.
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -334,7 +473,7 @@ export default function ProjectionPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {mockInsurances.map((insurance) => (
+                        {insurances && insurances.map((insurance) => (
                             <InsuranceCard key={insurance.id} insurance={insurance} />
                         ))}
                     </div>

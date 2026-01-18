@@ -46,12 +46,12 @@ const movementSchema = z.object({
     name: z.string().min(2, { message: 'Nome deve ter pelo menos 2 caracteres' }),
     type: z.enum(['INCOME', 'EXPENSE']),
     value: z.coerce.number().min(0.01, { message: 'Valor deve ser maior que zero' }),
-    frequency: z.enum(['MONTHLY', 'ANNUALLY', 'ONE_TIME']),
-    startDate: z.date({ required_error: 'Data de início é obrigatória' }), // Wait, z.date CAN take params in recent Zod. But better safe.
+    frequency: z.enum(['ONCE', 'MONTHLY', 'YEARLY']),
+    startDate: z.date(),
     endDate: z.date().optional().nullable(),
     inflationAdjusted: z.boolean().default(true),
 }).refine((data) => {
-    if (data.frequency !== 'ONE_TIME' && data.endDate && data.endDate < data.startDate) {
+    if (data.frequency !== 'ONCE' && data.endDate && data.endDate < data.startDate) {
         return false;
     }
     return true;
@@ -232,8 +232,8 @@ export function MovementModal({
                                             </FormControl>
                                             <SelectContent className="bg-[#1a1a1a] border-[#333] text-white">
                                                 <SelectItem value="MONTHLY">Mensal</SelectItem>
-                                                <SelectItem value="ANNUALLY">Anual</SelectItem>
-                                                <SelectItem value="ONE_TIME">Única</SelectItem>
+                                                <SelectItem value="YEARLY">Anual</SelectItem>
+                                                <SelectItem value="ONCE">Única</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
@@ -308,8 +308,8 @@ export function MovementModal({
                                 )}
                             />
 
-                            {/* End Date (if not ONE_TIME) */}
-                            {frequency !== 'ONE_TIME' && (
+                            {/* End Date (if not ONCE) */}
+                            {frequency !== 'ONCE' && (
                                 <FormField
                                     control={form.control}
                                     name="endDate"

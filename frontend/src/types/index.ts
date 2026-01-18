@@ -56,7 +56,7 @@ export interface Financing {
 
 export type MovementType = 'INCOME' | 'EXPENSE';
 export type IncomeCategory = 'WORK' | 'PASSIVE' | 'OTHER';
-export type Frequency = 'MONTHLY' | 'ANNUALLY' | 'ONE_TIME';
+export type Frequency = 'ONCE' | 'MONTHLY' | 'YEARLY';
 
 export interface Movement {
     id: number;
