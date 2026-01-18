@@ -103,6 +103,10 @@ export interface YearProjection {
     financingPayments: number;
     insurancePremiums: number;
     insuranceValue: number;
+    // Optional detailed breakdown
+    financialAssets?: number;
+    realEstateAssets?: number;
+    totalPatrimonyWithoutInsurance?: number;
 }
 
 export interface ProjectionResult {

@@ -6,7 +6,7 @@ import { MovementModal, MovementFormData } from '@/components/dashboard/movement
 import { InsuranceModal, InsuranceFormData } from '@/components/dashboard/insurance-modal';
 import { SimulationModal, SimulationFormData } from '@/components/dashboard/simulation-modal';
 import { ClientSelector, PatrimonyCard, MovementCard, InsuranceCard, SimulationSelector, AddSimulationModal } from '@/components/dashboard';
-import { ProjectionChart } from '@/components/charts';
+import { ProjectionChart, ProjectionTable, DetailedProjectionChart } from '@/components/charts';
 import { Timeline, TimelineEvent } from '@/components/timeline';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Plus, Loader2 } from 'lucide-react';
@@ -84,6 +84,7 @@ export default function ProjectionPage() {
     const [selectedSimulationIds, setSelectedSimulationIds] = useState<number[]>([]);
     const [lifeStatus, setLifeStatus] = useState<'ALIVE' | 'DEAD' | 'INVALID'>('ALIVE');
     const [movementFilter, setMovementFilter] = useState<'financial' | 'immobilized'>('financial');
+    const [viewMode, setViewMode] = useState<'chart' | 'table' | 'detailed'>('chart');
 
     // Data Fetching
     const { data: clients, isLoading: isLoadingClients } = useClients();
@@ -393,6 +394,13 @@ export default function ProjectionPage() {
         };
     });
 
+    // Detailed chart data needs a different structure (just raw projections)
+    const detailedProjections = (projectionsData || []).map(p => ({
+        simulationId: p.simulationId,
+        simulationName: p.simulationName,
+        projections: p.projections
+    }));
+
     // Create patrimony summaries from first projection
     const firstProjection = projectionsData?.[0]?.projections || [];
     const patrimonySummaries = createPatrimonySummaries(
@@ -522,18 +530,38 @@ export default function ProjectionPage() {
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-foreground">Projeção Patrimonial</h2>
                         <div className="flex gap-4 text-sm">
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                                Ver com detalhes
+                            <button
+                                onClick={() => setViewMode(viewMode === 'detailed' ? 'chart' : 'detailed')}
+                                className={cn(
+                                    "text-muted-foreground hover:text-foreground transition-colors",
+                                    viewMode === 'detailed' && "text-foreground font-medium"
+                                )}
+                            >
+                                {viewMode === 'detailed' ? 'Ver gráfico simples' : 'Ver com detalhes'}
                             </button>
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                                Ver como Tabela
+                            <button
+                                onClick={() => setViewMode(viewMode === 'table' ? 'chart' : 'table')}
+                                className={cn(
+                                    "text-muted-foreground hover:text-foreground transition-colors",
+                                    viewMode === 'table' && "text-foreground font-medium"
+                                )}
+                            >
+                                {viewMode === 'table' ? 'Ver como Gráfico' : 'Ver como Tabela'}
                             </button>
                         </div>
                     </div>
 
-                    <ProjectionChart
-                        projections={chartProjections}
-                    />
+                    {viewMode === 'chart' && (
+                        <ProjectionChart projections={chartProjections} />
+                    )}
+
+                    {viewMode === 'detailed' && (
+                        <DetailedProjectionChart projections={detailedProjections} />
+                    )}
+
+                    {viewMode === 'table' && (
+                        <ProjectionTable projections={detailedProjections} />
+                    )}
 
                     {/* Simulation Pills - CENTERED */}
                     <div className="mt-6 pt-6 border-t border-[#333333]">
