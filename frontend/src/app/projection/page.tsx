@@ -214,7 +214,7 @@ export default function ProjectionPage() {
             try {
                 const newSim = await createSimulation.mutateAsync({
                     name,
-                    startDate: new Date().toISOString(),
+                    startDate: new Date().toISOString().split('T')[0],
                     realRate: 0.04,
                     clientId: selectedClient.id
                 });
