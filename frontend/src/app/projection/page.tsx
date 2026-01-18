@@ -33,8 +33,12 @@ import {
     useUpdateInsurance,
     useDeleteInsurance,
     useProjections,
-    useAssets
+    useAssets,
+    useCreateAsset,
+    useUpdateAsset,
+    useDeleteAsset
 } from '@/hooks';
+import { simulationsService } from '@/services/simulations';
 
 // Helper to create patrimony summaries from projection data
 // Uses actual years from projection data rather than fixed offsets
@@ -152,6 +156,7 @@ export default function ProjectionPage() {
     const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
     const [editingInsurance, setEditingInsurance] = useState<Insurance | null>(null);
     const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+    const [duplicatingFromId, setDuplicatingFromId] = useState<number | null>(null);
 
     // Mutation Hooks
     const createSimulation = useCreateSimulation();
@@ -334,6 +339,11 @@ export default function ProjectionPage() {
                 });
                 toast.success("Simulação atualizada com sucesso!");
                 setEditingSimulation(null);
+            } else if (duplicatingFromId) {
+                // Duplica a simulação selecionada apenas com o novo nome
+                // Backend cuida de copiar data e taxa
+                await simulationsService.duplicate(duplicatingFromId, data.name);
+                toast.success("Simulação duplicada com sucesso!");
             } else {
                 await createSimulation.mutateAsync({
                     name: data.name,
@@ -607,6 +617,9 @@ export default function ProjectionPage() {
                                 selectedIds={selectedSimulationIds}
                                 onToggle={toggleSimulation}
                                 onAddClick={() => {
+                                    if (activeSimulationId) {
+                                        setDuplicatingFromId(activeSimulationId);
+                                    }
                                     setEditingSimulation(null);
                                     setIsSimulationModalOpen(true);
                                 }}
@@ -777,7 +790,10 @@ export default function ProjectionPage() {
 
                 <SimulationModal
                     open={isSimulationModalOpen}
-                    onOpenChange={setIsSimulationModalOpen}
+                    onOpenChange={(open) => {
+                        setIsSimulationModalOpen(open);
+                        if (!open) setDuplicatingFromId(null);
+                    }}
                     onSubmit={handleSaveSimulation}
                     initialData={editingSimulation ? {
                         name: editingSimulation.name,
