@@ -110,7 +110,8 @@ export default function ProjectionPage() {
 
     // Editing State
     const [editingSimulation, setEditingSimulation] = useState<Simulation | null>(null);
-    // const [editingMovement, setEditingMovement] = useState<Movement | null>(null); // TODO: Implement edit logic
+    const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
+    const [editingInsurance, setEditingInsurance] = useState<Insurance | null>(null);
 
     // Mutation Hooks
     const createSimulation = useCreateSimulation();
@@ -120,11 +121,12 @@ export default function ProjectionPage() {
     const duplicateSimulation = useDuplicateSimulation();
 
     const createMovement = useCreateMovement();
-    // const updateMovement = useUpdateMovement(); // TODO
-    // const deleteMovement = useDeleteMovement(); // TODO
+    const updateMovement = useUpdateMovement();
+    const deleteMovement = useDeleteMovement();
 
     const createInsurance = useCreateInsurance();
-    // const updateInsurance = useUpdateInsurance(); // TODO
+    const updateInsurance = useUpdateInsurance();
+    const deleteInsurance = useDeleteInsurance();
 
     // Handlers
     const toggleSimulation = (id: number) => {
@@ -140,18 +142,53 @@ export default function ProjectionPage() {
         }
 
         try {
-            await createMovement.mutateAsync({
-                ...data,
-                simulationId: activeSimulationId,
-                category: 'OTHER', // Default or derived
-                endDate: data.endDate ? data.endDate.toISOString().split('T')[0] : undefined,
-                startDate: data.startDate.toISOString().split('T')[0],
-            });
-            toast.success("Movimentação criada com sucesso!");
+            if (editingMovement) {
+                // Update existing movement
+                await updateMovement.mutateAsync({
+                    id: editingMovement.id,
+                    data: {
+                        name: data.name,
+                        type: data.type,
+                        value: data.value,
+                        frequency: data.frequency,
+                        startDate: data.startDate.toISOString().split('T')[0],
+                        endDate: data.endDate ? data.endDate.toISOString().split('T')[0] : undefined,
+                    }
+                });
+                toast.success("Movimentação atualizada com sucesso!");
+                setEditingMovement(null);
+            } else {
+                // Create new movement
+                await createMovement.mutateAsync({
+                    ...data,
+                    simulationId: activeSimulationId,
+                    category: 'OTHER',
+                    endDate: data.endDate ? data.endDate.toISOString().split('T')[0] : undefined,
+                    startDate: data.startDate.toISOString().split('T')[0],
+                });
+                toast.success("Movimentação criada com sucesso!");
+            }
             setIsMovementModalOpen(false);
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao criar movimentação.");
+            toast.error("Erro ao salvar movimentação.");
+        }
+    };
+
+    const handleEditMovement = (movement: Movement) => {
+        setEditingMovement(movement);
+        setIsMovementModalOpen(true);
+    };
+
+    const handleDeleteMovement = async (movement: Movement) => {
+        if (!activeSimulationId) return;
+        if (confirm(`Tem certeza que deseja excluir a movimentação "${movement.name}"?`)) {
+            try {
+                await deleteMovement.mutateAsync({ id: movement.id, simulationId: activeSimulationId });
+                toast.success("Movimentação excluída com sucesso!");
+            } catch (error) {
+                toast.error("Erro ao excluir movimentação.");
+            }
         }
     };
 
@@ -162,18 +199,52 @@ export default function ProjectionPage() {
         }
 
         try {
-            await createInsurance.mutateAsync({
-                ...data,
-                type: 'LIFE', // Simple default for now, TODO: Add type to modal or infer
-                simulationId: activeSimulationId,
-                premium: data.premiumValue,
-                startDate: data.startDate.toISOString().split('T')[0],
-            });
-            toast.success("Seguro criado com sucesso!");
+            if (editingInsurance) {
+                // Update existing insurance
+                await updateInsurance.mutateAsync({
+                    id: editingInsurance.id,
+                    data: {
+                        name: data.name,
+                        startDate: data.startDate.toISOString().split('T')[0],
+                        durationMonths: data.durationMonths,
+                        premium: data.premiumValue,
+                        insuredValue: data.insuredValue,
+                    }
+                });
+                toast.success("Seguro atualizado com sucesso!");
+                setEditingInsurance(null);
+            } else {
+                // Create new insurance
+                await createInsurance.mutateAsync({
+                    ...data,
+                    type: 'LIFE',
+                    simulationId: activeSimulationId,
+                    premium: data.premiumValue,
+                    startDate: data.startDate.toISOString().split('T')[0],
+                });
+                toast.success("Seguro criado com sucesso!");
+            }
             setIsInsuranceModalOpen(false);
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao criar seguro.");
+            toast.error("Erro ao salvar seguro.");
+        }
+    };
+
+    const handleEditInsurance = (insurance: Insurance) => {
+        setEditingInsurance(insurance);
+        setIsInsuranceModalOpen(true);
+    };
+
+    const handleDeleteInsurance = async (insurance: Insurance) => {
+        if (!activeSimulationId) return;
+        if (confirm(`Tem certeza que deseja excluir o seguro "${insurance.name}"?`)) {
+            try {
+                await deleteInsurance.mutateAsync({ id: insurance.id, simulationId: activeSimulationId });
+                toast.success("Seguro excluído com sucesso!");
+            } catch (error) {
+                toast.error("Erro ao excluir seguro.");
+            }
         }
     };
 
@@ -520,7 +591,12 @@ export default function ProjectionPage() {
                         {(movementFilter === 'financial' ? financialMovements : immobilizedMovements)
                             .slice(0, 4)
                             .map((movement) => (
-                                <MovementCard key={movement.id} movement={movement} />
+                                <MovementCard
+                                    key={movement.id}
+                                    movement={movement}
+                                    onEdit={handleEditMovement}
+                                    onDelete={handleDeleteMovement}
+                                />
                             ))}
                         {(!activeMovements || activeMovements.length === 0) && (
                             <div className="col-span-full text-center text-muted-foreground py-8">
@@ -545,7 +621,12 @@ export default function ProjectionPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {insurances && insurances.map((insurance) => (
-                            <InsuranceCard key={insurance.id} insurance={insurance} />
+                            <InsuranceCard
+                                key={insurance.id}
+                                insurance={insurance}
+                                onEdit={handleEditInsurance}
+                                onDelete={handleDeleteInsurance}
+                            />
                         ))}
                     </div>
                 </div>
@@ -553,14 +634,36 @@ export default function ProjectionPage() {
                 {/* Modals */}
                 <MovementModal
                     open={isMovementModalOpen}
-                    onOpenChange={setIsMovementModalOpen}
+                    onOpenChange={(open) => {
+                        setIsMovementModalOpen(open);
+                        if (!open) setEditingMovement(null);
+                    }}
                     onSubmit={handleSaveMovement}
+                    initialData={editingMovement ? {
+                        name: editingMovement.name,
+                        type: editingMovement.type,
+                        value: editingMovement.value,
+                        frequency: editingMovement.frequency,
+                        startDate: new Date(editingMovement.startDate),
+                        endDate: editingMovement.endDate ? new Date(editingMovement.endDate) : null,
+                        inflationAdjusted: true,
+                    } : null}
                 />
 
                 <InsuranceModal
                     open={isInsuranceModalOpen}
-                    onOpenChange={setIsInsuranceModalOpen}
+                    onOpenChange={(open) => {
+                        setIsInsuranceModalOpen(open);
+                        if (!open) setEditingInsurance(null);
+                    }}
                     onSubmit={handleSaveInsurance}
+                    initialData={editingInsurance ? {
+                        name: editingInsurance.name,
+                        startDate: new Date(editingInsurance.startDate),
+                        durationMonths: editingInsurance.durationMonths,
+                        premiumValue: editingInsurance.premium,
+                        insuredValue: editingInsurance.insuredValue,
+                    } : null}
                 />
 
                 <SimulationModal

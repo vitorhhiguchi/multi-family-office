@@ -1,14 +1,16 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, Pencil, Trash2 } from 'lucide-react';
 import type { Movement } from '@/types';
 
 interface MovementCardProps {
     movement: Movement;
+    onEdit?: (movement: Movement) => void;
+    onDelete?: (movement: Movement) => void;
 }
 
-export function MovementCard({ movement }: MovementCardProps) {
+export function MovementCard({ movement, onEdit, onDelete }: MovementCardProps) {
     // Use type field to determine income vs expense
     const isIncome = movement.type === 'INCOME';
 
@@ -39,9 +41,31 @@ export function MovementCard({ movement }: MovementCardProps) {
 
     return (
         <div className={cn(
-            "p-5 rounded-2xl bg-[#1a1a1a] border relative flex justify-between items-start",
+            "p-5 rounded-2xl bg-[#1a1a1a] border relative flex justify-between items-start group",
             isIncome ? "border-[#48F7A1]" : "border-[#FF5151]"
         )}>
+            {/* Action buttons - show on hover */}
+            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {onEdit && (
+                    <button
+                        onClick={() => onEdit(movement)}
+                        className="p-1.5 rounded-md bg-[#262626] hover:bg-[#333] text-muted-foreground hover:text-white transition-colors"
+                        title="Editar"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                )}
+                {onDelete && (
+                    <button
+                        onClick={() => onDelete(movement)}
+                        className="p-1.5 rounded-md bg-[#262626] hover:bg-red-900/50 text-muted-foreground hover:text-red-400 transition-colors"
+                        title="Excluir"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                )}
+            </div>
+
             <div>
                 <h3 className="text-lg font-normal text-[#e5e5e5] mb-1">{movement.name}</h3>
                 <div className="text-sm text-muted-foreground mb-1">
@@ -75,4 +99,5 @@ export function MovementCard({ movement }: MovementCardProps) {
         </div>
     );
 }
+
 
