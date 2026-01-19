@@ -2,12 +2,18 @@
 
 import { cn } from '@/lib/utils';
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreVertical, Edit, Copy, Trash2 } from 'lucide-react';
+import { MoreVertical, Edit, Copy, Trash2, AlertCircle } from 'lucide-react';
 import type { Simulation } from '@/types';
 
 // Anka Design System Colors
@@ -22,6 +28,7 @@ interface SimulationPillProps {
     simulation: Simulation;
     isSelected: boolean;
     variant: 'original' | 'current' | 'realized';
+    isLegacy?: boolean;
     onClick: () => void;
     onEdit?: () => void;
     onDuplicate?: () => void;
@@ -32,12 +39,14 @@ export function SimulationPill({
     simulation,
     isSelected,
     variant,
+    isLegacy,
     onClick,
     onEdit,
     onDuplicate,
     onDelete,
 }: SimulationPillProps) {
     const getColor = () => {
+        if (isLegacy) return '#EAB308'; // Yellow-500 for legacy
         switch (variant) {
             case 'original':
                 return ANKA_COLORS.blue;
@@ -67,9 +76,10 @@ export function SimulationPill({
                 'text-sm font-medium',
                 isSelected
                     ? 'bg-transparent'
-                    : 'bg-transparent border-[#333333] text-muted-foreground hover:border-[#444444]'
+                    : 'bg-transparent border-[#333333] text-muted-foreground hover:border-[#444444]',
+                isLegacy && isSelected && 'border-yellow-500/50 bg-yellow-500/10 text-yellow-500'
             )}
-            style={isSelected ? { borderColor: color } : undefined}
+            style={isSelected && !isLegacy ? { borderColor: color } : undefined}
         >
             <div
                 className="w-3 h-3 rounded-full border-2"
@@ -82,7 +92,20 @@ export function SimulationPill({
                 {simulation.name}
             </span>
 
-            {(onEdit || onDuplicate || onDelete) && (
+            {isLegacy && (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-[#1a1a1a] border-[#333] text-white">
+                            <p>versão legado – não editável</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
+
+            {(onEdit || onDuplicate || onDelete) && !isLegacy && (
                 <div onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -115,6 +138,18 @@ export function SimulationPill({
                     </DropdownMenu>
                 </div>
             )}
+            {isLegacy && (onDuplicate) && (
+                // Only allow Duplicate for legacy, no edit/delete menu
+                <div onClick={(e) => e.stopPropagation()}>
+                    <button
+                        onClick={onDuplicate}
+                        title="Criar nova versão a partir desta"
+                        className="ml-1 text-yellow-500 hover:text-yellow-400 p-0.5 rounded-full hover:bg-white/10 transition-colors focus:outline-none"
+                    >
+                        <Copy className="h-4 w-4" />
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
@@ -127,6 +162,7 @@ interface SimulationSelectorProps {
     onEditSimulation?: (simulation: Simulation) => void;
     onDuplicateSimulation?: (simulation: Simulation) => void;
     onDeleteSimulation?: (simulation: Simulation) => void;
+    legacySimulation?: Simulation | null;
 }
 
 export function SimulationSelector({
@@ -137,21 +173,33 @@ export function SimulationSelector({
     onEditSimulation,
     onDuplicateSimulation,
     onDeleteSimulation,
+    legacySimulation
 }: SimulationSelectorProps) {
+    // Combine regular simulations with legacy if present
+    // AvoidDuplicates: legacySimulation might technically be in simulations list if logic changes, so filter effectively?
+    // Based on previous analysis: legacy is NOT in simulations list.
+    const allSims = legacySimulation
+        ? [legacySimulation, ...simulations.filter(s => s.id !== legacySimulation.id)]
+        : simulations;
+
     return (
         <div className="flex items-center justify-center gap-3 flex-wrap">
-            {simulations.map((sim, index) => (
-                <SimulationPill
-                    key={sim.id}
-                    simulation={sim}
-                    isSelected={selectedIds.includes(sim.id)}
-                    variant={sim.isCurrentSituation ? 'current' : 'original'}
-                    onClick={() => onToggle(sim.id)}
-                    onEdit={onEditSimulation ? () => onEditSimulation(sim) : undefined}
-                    onDuplicate={onDuplicateSimulation ? () => onDuplicateSimulation(sim) : undefined}
-                    onDelete={onDeleteSimulation ? () => onDeleteSimulation(sim) : undefined}
-                />
-            ))}
+            {allSims.map((sim, index) => {
+                const isLegacy = legacySimulation?.id === sim.id;
+                return (
+                    <SimulationPill
+                        key={sim.id}
+                        simulation={sim}
+                        isSelected={selectedIds.includes(sim.id)}
+                        variant={sim.isCurrentSituation ? 'current' : 'original'}
+                        isLegacy={isLegacy}
+                        onClick={() => onToggle(sim.id)}
+                        onEdit={onEditSimulation ? () => onEditSimulation(sim) : undefined}
+                        onDuplicate={onDuplicateSimulation ? () => onDuplicateSimulation(sim) : undefined}
+                        onDelete={onDeleteSimulation ? () => onDeleteSimulation(sim) : undefined}
+                    />
+                );
+            })}
             <div
                 className="flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors cursor-default select-none"
                 style={{

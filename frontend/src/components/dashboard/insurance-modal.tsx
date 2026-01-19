@@ -29,12 +29,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 
 // Schema Validation
 const insuranceSchema = z.object({
     name: z.string().min(2, { message: 'Nome deve ter pelo menos 2 caracteres' }),
-    startDate: z.date({ required_error: 'Data de início é obrigatória' }),
+    type: z.enum(['LIFE', 'DISABILITY', 'HEALTH', 'PROPERTY', 'OTHER']),
+    startDate: z.date(),
     durationMonths: z.coerce.number().min(1, { message: 'Duração deve ser maior que 0' }),
     premiumValue: z.coerce.number().min(0.01, { message: 'Prêmio deve ser maior que zero' }),
     insuredValue: z.coerce.number().min(0.01, { message: 'Valor segurado deve ser maior que zero' }),
@@ -60,13 +68,15 @@ export function InsuranceModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<InsuranceFormData>({
-        resolver: zodResolver(insuranceSchema),
+        resolver: zodResolver(insuranceSchema) as any,
         defaultValues: {
             name: '',
+            type: 'LIFE',
+            startDate: new Date(),
             durationMonths: 12,
             premiumValue: 0,
             insuredValue: 0,
-        },
+        } as any,
     });
 
     useEffect(() => {
@@ -76,6 +86,7 @@ export function InsuranceModal({
             } else {
                 form.reset({
                     name: '',
+                    type: 'LIFE',
                     startDate: new Date(),
                     durationMonths: 120, // 10 years default
                     premiumValue: 0,
@@ -106,7 +117,7 @@ export function InsuranceModal({
                         {initialData ? 'Editar Seguro' : 'Novo Seguro'}
                     </DialogTitle>
                     <DialogDescription className="text-slate-400">
-                        Configure o seguro de vida ou invalidez.
+                        Configure o seguro de vida, invalidez ou outros.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -123,6 +134,32 @@ export function InsuranceModal({
                                     <FormControl>
                                         <Input placeholder="Ex: Seguro de Vida Prudential" {...field} className="bg-[#0f0f0f] border-[#333]" />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Type */}
+                        <FormField
+                            control={form.control}
+                            name="type"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Tipo de Seguro</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger className="bg-[#0f0f0f] border-[#333] text-white">
+                                                <SelectValue placeholder="Selecione o tipo" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent className="bg-[#1a1a1a] border-[#333] text-white">
+                                            <SelectItem value="LIFE">Vida</SelectItem>
+                                            <SelectItem value="DISABILITY">Invalidez</SelectItem>
+                                            <SelectItem value="HEALTH">Saúde</SelectItem>
+                                            <SelectItem value="PROPERTY">Patrimonial</SelectItem>
+                                            <SelectItem value="OTHER">Outros</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}

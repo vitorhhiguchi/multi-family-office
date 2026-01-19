@@ -18,6 +18,7 @@ import type { Client, Simulation, Insurance, Movement } from '@/types';
 
 import {
     useClients,
+    useSimulation,
     useSimulations,
     useCreateSimulation,
     useUpdateSimulation,
@@ -33,10 +34,7 @@ import {
     useUpdateInsurance,
     useDeleteInsurance,
     useProjections,
-    useAssets,
-    useCreateAsset,
-    useUpdateAsset,
-    useDeleteAsset
+    useAssets
 } from '@/hooks';
 import { simulationsService } from '@/services/simulations';
 
@@ -138,6 +136,9 @@ export default function ProjectionPage() {
     // If the active simulation ID is NOT in the list of "latest" simulations (returned by default useSimulations),
     // it means we are viewing an old version extracted from the History page.
     const isLegacy = activeSimulationId && simulations && !simulations.find(s => s.id === activeSimulationId);
+
+    // Fetch legacy simulation details if needed so we can display it in the selector
+    const { data: legacySimulation } = useSimulation(isLegacy ? activeSimulationId : 0);
 
     // Fetch dependent data
     const { data: movements } = useMovements(activeSimulationId);
@@ -250,6 +251,7 @@ export default function ProjectionPage() {
                     id: editingInsurance.id,
                     data: {
                         name: data.name,
+                        type: data.type,
                         startDate: data.startDate.toISOString().split('T')[0],
                         durationMonths: data.durationMonths,
                         premium: data.premiumValue,
@@ -262,7 +264,7 @@ export default function ProjectionPage() {
                 // Create new insurance
                 await createInsurance.mutateAsync({
                     ...data,
-                    type: 'LIFE',
+                    type: data.type,
                     simulationId: activeSimulationId,
                     premium: data.premiumValue,
                     startDate: data.startDate.toISOString().split('T')[0],
@@ -647,6 +649,7 @@ export default function ProjectionPage() {
                                 onEditSimulation={handleEditSimulation}
                                 onDuplicateSimulation={handleDuplicateSimulation}
                                 onDeleteSimulation={handleDeleteSimulation}
+                                legacySimulation={legacySimulation}
                             />
                         )}
                     </div>
@@ -794,6 +797,7 @@ export default function ProjectionPage() {
                     onSubmit={handleSaveInsurance}
                     initialData={editingInsurance ? {
                         name: editingInsurance.name,
+                        type: editingInsurance.type,
                         startDate: new Date(editingInsurance.startDate),
                         durationMonths: editingInsurance.durationMonths,
                         premiumValue: editingInsurance.premium,

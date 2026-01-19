@@ -8,8 +8,8 @@ import { differenceInMonths, parseISO } from 'date-fns';
 interface AssetCardProps {
     asset: Asset;
     date: Date; // Usado para executar calculo de valor atual ou progresso
-    onEdit: (asset: Asset) => void;
-    onDelete: (asset: Asset) => void;
+    onEdit?: (asset: Asset) => void;
+    onDelete?: (asset: Asset) => void;
     onClick?: () => void;
 }
 
@@ -92,18 +92,22 @@ export function AssetCard({ asset, date, onEdit, onDelete, onClick }: AssetCardP
             )}>
             {/* Action buttons - show on hover */}
             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <button
-                    onClick={(e) => { e.stopPropagation(); onEdit(asset); }}
-                    className="p-1.5 rounded-md bg-[#262626] hover:bg-[#333] text-muted-foreground hover:text-white transition-colors"
-                >
-                    <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(asset); }}
-                    className="p-1.5 rounded-md bg-[#262626] hover:bg-red-900/50 text-muted-foreground hover:text-red-400 transition-colors"
-                >
-                    <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {onEdit && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onEdit(asset); }}
+                        className="p-1.5 rounded-md bg-[#262626] hover:bg-[#333] text-muted-foreground hover:text-white transition-colors"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                )}
+                {onDelete && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(asset); }}
+                        className="p-1.5 rounded-md bg-[#262626] hover:bg-red-900/50 text-muted-foreground hover:text-red-400 transition-colors"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                )}
             </div>
 
             <div>
