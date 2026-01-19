@@ -38,8 +38,8 @@ import {
 } from '@/hooks';
 import { simulationsService } from '@/services/simulations';
 
-// Helper to create patrimony summaries from projection data
-// Uses actual years from projection data rather than fixed offsets
+// Helper para criar resumos de patrimônio a partir dos dados de projeção
+// Usa anos reais dos dados de projeção em vez de offsets fixos
 const createPatrimonySummaries = (
     projections: { year: number; totalPatrimony: number }[],
     clientBirthYear: number
@@ -49,11 +49,11 @@ const createPatrimonySummaries = (
     const currentYear = new Date().getFullYear();
     const firstProjection = projections[0];
 
-    // Calculate max patrimony for progress bars (100% = max value in projection)
-    // We consider the max value achieved across the entire projection period
+    // Calcula patrimônio máximo para barras de progresso (100% = valor máximo na projeção)
+    // Consideramos o valor máximo alcançado em todo o período da projeção
     const maxPatrimony = Math.max(...projections.map(p => p.totalPatrimony));
 
-    // Define target milestones: Hoje, Médio Prazo (10 anos), Aposentadoria (65 anos)
+    // Define marcos: Hoje, Médio Prazo (10 anos), Aposentadoria (65 anos)
     const clientAge = currentYear - clientBirthYear;
     const retirementAge = 65;
     const retirementYear = currentYear + (retirementAge - clientAge);
@@ -65,7 +65,7 @@ const createPatrimonySummaries = (
     ];
 
     return milestones.map(milestone => {
-        // Find the closest year in projections
+        // Encontra o ano mais próximo nas projeções
         const yearData = projections.find(p => p.year === milestone.year) ||
             projections.find(p => p.year >= milestone.year) ||
             projections[projections.length - 1];
@@ -76,7 +76,7 @@ const createPatrimonySummaries = (
             ? ((yearData.totalPatrimony - firstProjection.totalPatrimony) / firstProjection.totalPatrimony) * 100
             : 0;
 
-        // Calculate progress relative to max patrimony
+        // Calcula progresso relativo ao patrimônio máximo
         const progress = maxPatrimony > 0
             ? Math.min((yearData.totalPatrimony / maxPatrimony) * 100, 100)
             : 0;
@@ -96,25 +96,25 @@ const createPatrimonySummaries = (
 };
 
 export default function ProjectionPage() {
-    // Selection state
+
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [selectedSimulationIds, setSelectedSimulationIds] = useState<number[]>([]);
     const [lifeStatus, setLifeStatus] = useState<'ALIVE' | 'DEAD' | 'INVALID'>('ALIVE');
     const [movementFilter, setMovementFilter] = useState<'financial' | 'immobilized'>('financial');
     const [viewMode, setViewMode] = useState<'chart' | 'table' | 'detailed'>('chart');
 
-    // Data Fetching
+
     const { data: clients, isLoading: isLoadingClients } = useClients();
     const { data: simulations, isLoading: isLoadingSimulations } = useSimulations(selectedClient?.id);
 
-    // Select first client by default
+
     useEffect(() => {
         if (clients && clients.length > 0 && !selectedClient) {
             setSelectedClient(clients[0]);
         }
     }, [clients, selectedClient]);
 
-    // Select first two simulations by default when simulations load
+
     useEffect(() => {
         if (simulations && simulations.length > 0 && selectedSimulationIds.length === 0) {
             // Prefer current situation + one other
@@ -128,38 +128,37 @@ export default function ProjectionPage() {
         }
     }, [simulations, selectedSimulationIds]);
 
-    // Derived state for default simulation (usually the "Current Situation" or the first selected)
-    // We use this for adding movements/insurances context
+
     const activeSimulationId = selectedSimulationIds.length > 0 ? selectedSimulationIds[0] : undefined;
 
-    // Legacy Version Detection
-    // If the active simulation ID is NOT in the list of "latest" simulations (returned by default useSimulations),
-    // it means we are viewing an old version extracted from the History page.
+    // Detecção de Versão Legado
+    // Se o ID da simulação ativa NÃO estiver na lista de "últimas" simulações (retornada pelo useSimulations padrão),
+    // significa que estamos visualizando uma versão antiga extraída do Histórico.
     const isLegacy = activeSimulationId && simulations && !simulations.find(s => s.id === activeSimulationId);
 
-    // Fetch legacy simulation details if needed so we can display it in the selector
+    // Busca detalhes da simulação legado se necessário para exibir no seletor
     const { data: legacySimulation } = useSimulation(isLegacy ? activeSimulationId : 0);
 
-    // Fetch dependent data
+
     const { data: movements } = useMovements(activeSimulationId);
     const { data: insurances } = useInsurances(activeSimulationId);
     const { assets, createAsset, updateAsset, deleteAsset } = useAssets(activeSimulationId);
     const { data: projectionsData, isLoading: isLoadingProjections } = useProjections(selectedSimulationIds, 2060, lifeStatus);
 
-    // Modals & Mutation Hooks
+
     const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
     const [isInsuranceModalOpen, setIsInsuranceModalOpen] = useState(false);
     const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
     const [isSimulationModalOpen, setIsSimulationModalOpen] = useState(false);
 
-    // Editing State
+
     const [editingSimulation, setEditingSimulation] = useState<Simulation | null>(null);
     const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
     const [editingInsurance, setEditingInsurance] = useState<Insurance | null>(null);
     const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
     const [duplicatingFromId, setDuplicatingFromId] = useState<number | null>(null);
 
-    // Mutation Hooks
+
     const createSimulation = useCreateSimulation();
     const updateSimulation = useUpdateSimulation();
     const deleteSimulation = useDeleteSimulation();
@@ -174,7 +173,7 @@ export default function ProjectionPage() {
     const updateInsurance = useUpdateInsurance();
     const deleteInsurance = useDeleteInsurance();
 
-    // Handlers
+
     const toggleSimulation = (id: number) => {
         setSelectedSimulationIds((prev) =>
             prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -398,8 +397,7 @@ export default function ProjectionPage() {
         }).format(val);
     };
 
-    // Filter movements by type (using backend data)
-    // Filter movements and assets
+    // Filtra movimentações e ativos
     const activeMovements = movements || [];
     const activeAssets = assets || [];
 
@@ -416,11 +414,11 @@ export default function ProjectionPage() {
     const financialItems = [...financialMovements, ...financialAssetsList];
     const immobilizedItems = [...immobilizedMovements, ...realEstateAssets];
 
-    // Client birth year for timeline
+    // Ano de nascimento do cliente para timeline
     const clientBirthYear = selectedClient ? new Date(selectedClient.birthDate).getFullYear() : 1985;
 
-    // Prepare chart data
-    // Map projectionsData (ProjectionResult[]) to the format expected by ProjectionChart
+    // Prepara dados do gráfico
+    // Mapeia data (ProjectionResult[]) para o formato esperado pelo ProjectionChart
     const baseChartProjections = (projectionsData || []).map(p => {
         const sim = simulations?.find(s => s.id === p.simulationId);
         return {
@@ -435,7 +433,7 @@ export default function ProjectionPage() {
 
     const chartProjections = [...baseChartProjections];
 
-    // Add "Realizado" line based on the first available projection (usually the active or primary context)
+    // Adiciona linha "Realizado" baseada na primeira projeção disponível
     if (projectionsData && projectionsData.length > 0) {
         const baseProj = projectionsData[0];
         chartProjections.push({
@@ -451,21 +449,21 @@ export default function ProjectionPage() {
         });
     }
 
-    // Detailed chart data needs a different structure (just raw projections)
+    // Projeção detalhada precisa de estrutura diferente (apenas projeções brutas)
     const detailedProjections = (projectionsData || []).map(p => ({
         simulationId: p.simulationId,
         simulationName: p.simulationName,
         projections: p.projections
     }));
 
-    // Create patrimony summaries from active projection
+    // Cria resumos de patrimônio da projeção ativa
     const activeProjection = projectionsData?.find(p => p.simulationId === activeSimulationId);
     const patrimonySummaries = createPatrimonySummaries(
         activeProjection?.projections || [],
         clientBirthYear
     );
 
-    // Map movements to timeline events
+    // Mapeia movimentações para eventos da timeline
     const timelineEvents: TimelineEvent[] = (movements || []).map(m => ({
         year: new Date(m.startDate).getFullYear(),
         label: m.name,
@@ -486,7 +484,7 @@ export default function ProjectionPage() {
     return (
         <MainLayout>
             <div className="min-h-screen bg-background p-6 lg:p-8">
-                {/* Header: Selectors & Navigation */}
+
                 <div className="flex flex-col gap-6 mb-8">
                     <div className="flex items-center gap-4">
                         {clients && (
@@ -513,9 +511,9 @@ export default function ProjectionPage() {
                     </div>
                 )}
 
-                {/* Client & Patrimony Section */}
+
                 <div className="flex flex-col lg:flex-row items-start gap-8 mb-8">
-                    {/* Left: Total */}
+
                     <div className="flex-1">
                         <div className="mt-0">
                             <p className="text-xs text-muted-foreground">Patrimônio Líquido Total</p>
@@ -529,7 +527,7 @@ export default function ProjectionPage() {
                         </div>
                     </div>
 
-                    {/* Right: Patrimony Cards */}
+
                     <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         {patrimonySummaries.length > 0 ? patrimonySummaries.map((summary: any) => (
                             <ProjectionStat
@@ -549,7 +547,7 @@ export default function ProjectionPage() {
                     </div>
                 </div>
 
-                {/* Life Status Toggle & Suggestion - CENTERED */}
+
                 <div className="flex items-center justify-center gap-8 mb-6">
                     <label className="flex items-center gap-2 cursor-pointer group">
                         <div className={cn(
@@ -591,7 +589,7 @@ export default function ProjectionPage() {
                     </button>
                 </div>
 
-                {/* Projection Chart Section */}
+
                 <div className="bg-[#1a1a1a] border border-[#333333] rounded-2xl p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-foreground">Projeção Patrimonial</h2>
@@ -665,7 +663,7 @@ export default function ProjectionPage() {
                     />
                 </div>
 
-                {/* Movements Section */}
+
                 <div className="mb-6">
                     <div className="flex flex-col gap-4 mb-4">
                         <div className="flex items-center justify-between">
@@ -742,7 +740,7 @@ export default function ProjectionPage() {
                     </div>
                 </div>
 
-                {/* Insurance Section */}
+
                 <div>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-normal text-[#67AEFA]">Seguros</h2>
@@ -769,7 +767,7 @@ export default function ProjectionPage() {
                     </div>
                 </div>
 
-                {/* Modals */}
+
                 <MovementModal
                     open={isMovementModalOpen}
                     onOpenChange={(open) => {

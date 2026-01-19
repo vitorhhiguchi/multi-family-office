@@ -32,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
-// Schema Validation
+// Validação de Schema
 const simulationSchema = z.object({
     name: z.string().min(2, { message: 'Nome deve ter pelo menos 2 caracteres' }),
     startDate: z.date({ required_error: 'Data de início é obrigatória' }),
@@ -108,7 +108,6 @@ export function SimulationModal({
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
 
-                        {/* Name */}
                         <FormField
                             control={form.control}
                             name="name"
@@ -124,7 +123,6 @@ export function SimulationModal({
                         />
 
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Start Date */}
                             <FormField
                                 control={form.control}
                                 name="startDate"
@@ -169,7 +167,6 @@ export function SimulationModal({
                                 )}
                             />
 
-                            {/* Inflation Rate */}
                             <FormField
                                 control={form.control}
                                 name="inflationRate"

@@ -10,7 +10,7 @@ type TransactionClient = Prisma.TransactionClient;
 
 export class SimulationService {
     async create(data: CreateSimulationInput) {
-        // Check if simulation with same name already exists for this client
+
         const existing = await prisma.simulation.findFirst({
             where: {
                 clientId: data.clientId,
@@ -55,7 +55,7 @@ export class SimulationService {
             });
         }
 
-        // Only get latest version of each simulation name
+        // Obtém apenas a última versão de cada nome de simulação
         const simulations = await prisma.simulation.findMany({
             where: clientId ? { clientId } : undefined,
             orderBy: [{ name: 'asc' }, { version: 'desc' }],
@@ -76,7 +76,7 @@ export class SimulationService {
             },
         });
 
-        // Group by name and get the latest version (highest version number)
+        // Agrupa por nome e pega a última versão (maior número de versão)
         const latestVersions = new Map<string, typeof simulations[0]>();
         for (const sim of simulations) {
             const key = `${sim.clientId}-${sim.name}`;
@@ -153,7 +153,7 @@ export class SimulationService {
             throw new Error('Simulation not found');
         }
 
-        // Get the highest version for this simulation name
+        // Obtém a maior versão para este nome de simulação
         const maxVersion = await prisma.simulation.aggregate({
             where: {
                 clientId: source.clientId,
@@ -166,7 +166,7 @@ export class SimulationService {
 
         const newVersion = (maxVersion._max.version ?? 0) + 1;
 
-        // Create new simulation with incremented version
+        // Cria nova simulação com versão incrementada
         return prisma.$transaction(async (tx: TransactionClient) => {
             const newSimulation = await tx.simulation.create({
                 data: {
@@ -178,7 +178,7 @@ export class SimulationService {
                 },
             });
 
-            // Copy assets with their records
+
             for (const asset of source.assets) {
                 const newAsset = await tx.asset.create({
                     data: {
@@ -188,7 +188,7 @@ export class SimulationService {
                     },
                 });
 
-                // Copy records
+
                 for (const record of asset.records) {
                     await tx.assetRecord.create({
                         data: {
@@ -199,7 +199,7 @@ export class SimulationService {
                     });
                 }
 
-                // Copy financing if exists
+
                 if (asset.financing) {
                     await tx.financing.create({
                         data: {
@@ -213,7 +213,7 @@ export class SimulationService {
                 }
             }
 
-            // Copy movements
+
             for (const movement of source.movements) {
                 await tx.movement.create({
                     data: {
@@ -229,7 +229,7 @@ export class SimulationService {
                 });
             }
 
-            // Copy insurances
+
             for (const insurance of source.insurances) {
                 await tx.insurance.create({
                     data: {
@@ -249,7 +249,7 @@ export class SimulationService {
     }
 
     async duplicate(id: number, data: DuplicateSimulationInput) {
-        // Check if simulation with new name already exists
+
         const source = await this.findById(id);
 
         if (!source) {
@@ -267,7 +267,7 @@ export class SimulationService {
             throw new Error('A simulation with this name already exists');
         }
 
-        // Create duplicate with new name
+
         return prisma.$transaction(async (tx: TransactionClient) => {
             const newSimulation = await tx.simulation.create({
                 data: {
@@ -279,7 +279,7 @@ export class SimulationService {
                 },
             });
 
-            // Copy assets with their records (same logic as createVersion)
+
             for (const asset of source.assets) {
                 const newAsset = await tx.asset.create({
                     data: {
@@ -352,7 +352,7 @@ export class SimulationService {
             throw new Error('Source simulation not found');
         }
 
-        // Delete existing current situation if exists
+        // Deleta situação atual existente se houver
         await prisma.simulation.deleteMany({
             where: {
                 clientId,
@@ -360,7 +360,7 @@ export class SimulationService {
             },
         });
 
-        // Create new current situation with today's date
+        // Cria nova situação atual com a data de hoje
         return prisma.$transaction(async (tx: TransactionClient) => {
             const newSimulation = await tx.simulation.create({
                 data: {
@@ -373,7 +373,7 @@ export class SimulationService {
                 },
             });
 
-            // Copy all data from source (same as duplicate)
+
             for (const asset of source.assets) {
                 const newAsset = await tx.asset.create({
                     data: {

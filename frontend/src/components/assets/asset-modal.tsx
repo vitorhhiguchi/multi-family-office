@@ -23,13 +23,13 @@ interface AssetModalProps {
 export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initialData }: AssetModalProps) {
     const [isLoading, setIsLoading] = useState(false);
 
-    // Form State
+
     const [type, setType] = useState<'FINANCIAL' | 'REAL_ESTATE'>('FINANCIAL');
     const [name, setName] = useState('');
     const [initialValue, setInitialValue] = useState('');
     const [initialDate, setInitialDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-    // Financing State
+
     const [isFinanced, setIsFinanced] = useState(false);
     const [downPayment, setDownPayment] = useState('');
     const [installments, setInstallments] = useState('');
@@ -41,14 +41,8 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
             if (initialData) {
                 setType(initialData.type === 'REAL_ESTATE' ? 'REAL_ESTATE' : 'FINANCIAL');
                 setName(initialData.name);
-                // Pegar valor inicial do primeiro record ou algo assim?
-                // Edição de assets é complexa pq valor inicial é histórico.
-                // Talvez edição seja apenas NOME e detalhes de financiamento.
-                // Para simplificar MVP: Permitir editar NOME. Valor inicial só na criação?
-                // O backend updateAsset recebe Partial<CreateAssetInput>.
-
-                // Vamos assumir que na edição, só permitimos editar Nome por enquanto, 
-                // e detalhes de financiamento se for Real Estate.
+                // Edição simplificada: apenas nome e detalhes de financiamento (se imóvel).
+                // Valor inicial é histórico e não editável neste contexto.
                 setName(initialData.name);
 
                 const initialRecord = initialData.records?.[0];
@@ -65,7 +59,7 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
                     setIsFinanced(false);
                 }
             } else {
-                // Reset form for create
+                // Reseta formulário para criação
                 setName('');
                 setInitialValue('');
                 setInitialDate(format(new Date(), 'yyyy-MM-dd'));
@@ -74,7 +68,7 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
                 setInstallments('');
                 setInterestRate('');
                 setFinancingStartDate('');
-                setType('FINANCIAL'); // Default
+                setType('FINANCIAL'); // Padrão
             }
         }
     }, [open, initialData]);
@@ -124,7 +118,7 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Type Selector (Only on Create) */}
+
                     {!initialData && (
                         <div className="grid grid-cols-2 gap-2 bg-black/20 p-1 rounded-lg">
                             <button
@@ -156,7 +150,7 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
                         </div>
                     )}
 
-                    {/* Common Fields */}
+
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label>Nome</Label>
@@ -195,7 +189,7 @@ export function AssetModal({ open, onOpenChange, onSubmit, simulationId, initial
                         </div>
                     </div>
 
-                    {/* Real Estate Specifics */}
+
                     {type === 'REAL_ESTATE' && (
                         <div className="pt-2 border-t border-[#333333] space-y-4">
                             <div className="flex items-center space-x-2">

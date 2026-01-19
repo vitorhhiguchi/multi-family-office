@@ -20,7 +20,7 @@ export class AssetService {
                 },
             });
 
-            // Create initial record
+
             await tx.assetRecord.create({
                 data: {
                     assetId: asset.id,
@@ -29,7 +29,7 @@ export class AssetService {
                 },
             });
 
-            // Create financing if provided
+
             if (data.financing) {
                 await tx.financing.create({
                     data: {
@@ -124,7 +124,7 @@ export class AssetService {
         });
     }
 
-    // Get the most recent record before a given date
+    // Obtém o registro mais recente antes de uma determinada data
     async getRecordAtDate(assetId: number, date: Date) {
         return prisma.assetRecord.findFirst({
             where: {
@@ -137,7 +137,7 @@ export class AssetService {
         });
     }
 
-    // Quick update: create new record with current date
+    // Atualização rápida: cria novo registro com data atual
     async quickUpdate(assetId: number, value: number) {
         return prisma.assetRecord.create({
             data: {

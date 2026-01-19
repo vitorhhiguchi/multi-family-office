@@ -41,7 +41,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-// Schema Validation
+// Validação de Schema
 const movementSchema = z.object({
     name: z.string().min(2, { message: 'Nome deve ter pelo menos 2 caracteres' }),
     type: z.enum(['INCOME', 'EXPENSE']),
@@ -80,7 +80,7 @@ export function MovementModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<MovementFormData>({
-        resolver: zodResolver(movementSchema),
+        resolver: zodResolver(movementSchema) as any,
         defaultValues: {
             name: '',
             type: 'INCOME',
@@ -90,7 +90,7 @@ export function MovementModal({
         },
     });
 
-    // Reset form when opening/closing or changing initialData
+    // Reseta form ao abrir/fechar ou mudar dados iniciais
     useEffect(() => {
         if (open) {
             if (initialData) {
@@ -140,7 +140,6 @@ export function MovementModal({
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
 
-                        {/* Type Selection (Radio-like visual) */}
                         <FormField
                             control={form.control}
                             name="type"
@@ -179,7 +178,6 @@ export function MovementModal({
                         />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Name */}
                             <FormField
                                 control={form.control}
                                 name="name"
@@ -194,7 +192,6 @@ export function MovementModal({
                                 )}
                             />
 
-                            {/* Value */}
                             <FormField
                                 control={form.control}
                                 name="value"
@@ -217,7 +214,6 @@ export function MovementModal({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Frequency */}
                             <FormField
                                 control={form.control}
                                 name="frequency"
@@ -241,7 +237,6 @@ export function MovementModal({
                                 )}
                             />
 
-                            {/* Inflation Adjusted */}
                             <FormField
                                 control={form.control}
                                 name="inflationAdjusted"
@@ -263,7 +258,6 @@ export function MovementModal({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Start Date */}
                             <FormField
                                 control={form.control}
                                 name="startDate"
@@ -308,7 +302,6 @@ export function MovementModal({
                                 )}
                             />
 
-                            {/* End Date (if not ONCE) */}
                             {frequency !== 'ONCE' && (
                                 <FormField
                                     control={form.control}

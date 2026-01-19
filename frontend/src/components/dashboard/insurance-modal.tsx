@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 
-// Schema Validation
+// Validação de Schema
 const insuranceSchema = z.object({
     name: z.string().min(2, { message: 'Nome deve ter pelo menos 2 caracteres' }),
     type: z.enum(['LIFE', 'DISABILITY', 'HEALTH', 'PROPERTY', 'OTHER']),
@@ -88,7 +88,7 @@ export function InsuranceModal({
                     name: '',
                     type: 'LIFE',
                     startDate: new Date(),
-                    durationMonths: 120, // 10 years default
+                    durationMonths: 120, // 10 anos padrão
                     premiumValue: 0,
                     insuredValue: 0,
                 });
@@ -124,7 +124,6 @@ export function InsuranceModal({
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
 
-                        {/* Name */}
                         <FormField
                             control={form.control}
                             name="name"
@@ -139,7 +138,6 @@ export function InsuranceModal({
                             )}
                         />
 
-                        {/* Type */}
                         <FormField
                             control={form.control}
                             name="type"
@@ -166,7 +164,6 @@ export function InsuranceModal({
                         />
 
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Start Date */}
                             <FormField
                                 control={form.control}
                                 name="startDate"
@@ -211,7 +208,6 @@ export function InsuranceModal({
                                 )}
                             />
 
-                            {/* Duration */}
                             <FormField
                                 control={form.control}
                                 name="durationMonths"
@@ -228,7 +224,6 @@ export function InsuranceModal({
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Premium */}
                             <FormField
                                 control={form.control}
                                 name="premiumValue"
@@ -243,7 +238,6 @@ export function InsuranceModal({
                                 )}
                             />
 
-                            {/* Insured Value */}
                             <FormField
                                 control={form.control}
                                 name="insuredValue"

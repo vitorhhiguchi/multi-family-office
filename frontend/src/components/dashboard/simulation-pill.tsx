@@ -16,7 +16,7 @@ import {
 import { MoreVertical, Edit, Copy, Trash2, AlertCircle } from 'lucide-react';
 import type { Simulation } from '@/types';
 
-// Anka Design System Colors
+// Cores do Anka Design System
 const ANKA_COLORS = {
     blue: '#67AEFA',    // Plano Original
     green: '#48F7A1',   // Situação Atual
@@ -46,7 +46,7 @@ export function SimulationPill({
     onDelete,
 }: SimulationPillProps) {
     const getColor = () => {
-        if (isLegacy) return '#EAB308'; // Yellow-500 for legacy
+        if (isLegacy) return '#EAB308'; // Amarelo-500 para legado
         switch (variant) {
             case 'original':
                 return ANKA_COLORS.blue;
@@ -139,7 +139,7 @@ export function SimulationPill({
                 </div>
             )}
             {isLegacy && (onDuplicate) && (
-                // Only allow Duplicate for legacy, no edit/delete menu
+                // Permite apenas Duplicar para legado, sem menu de editar/deletar
                 <div onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={onDuplicate}
@@ -175,9 +175,7 @@ export function SimulationSelector({
     onDeleteSimulation,
     legacySimulation
 }: SimulationSelectorProps) {
-    // Combine regular simulations with legacy if present
-    // AvoidDuplicates: legacySimulation might technically be in simulations list if logic changes, so filter effectively?
-    // Based on previous analysis: legacy is NOT in simulations list.
+    // Combina simulações regulares com legado se presente
     const allSims = legacySimulation
         ? [legacySimulation, ...simulations.filter(s => s.id !== legacySimulation.id)]
         : simulations;
